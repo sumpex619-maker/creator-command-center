@@ -10,16 +10,10 @@ import plotly.express as px
 st.set_page_config(page_title="Creator Command Center", layout="wide")
 
 # ==============================================================================
-# KONFIGURATION & DATEIPFADE
+# GLOBALE KONFIGURATION (Für alle Nutzer geteilt)
 # ==============================================================================
 USERS_FILE = "users.json"
 SETTINGS_FILE = "settings.json" 
-DB_FILE = "stats.json"
-WEBHOOKS_FILE = "webhooks.json"
-SCHEDULE_FILE = "schedule.json"
-SOCIAL_POSTS_FILE = "social_posts_queue.json"
-IDEAS_FILE = "ideas.json"
-TODOS_FILE = "todos.json"
 
 WOCHENTAGE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 
@@ -134,10 +128,22 @@ if not st.session_state["logged_in"]:
     st.stop()
 
 # ==============================================================================
+# PRIVATE DATEIPFADE PRO NUTZER (DATEN-TRENNUNG)
+# ==============================================================================
+current_user = st.session_state["username"]
+user_prefix = current_user.replace(" ", "_").lower()
+
+DB_FILE = f"data_{user_prefix}_stats.json"
+WEBHOOKS_FILE = f"data_{user_prefix}_webhooks.json"
+SCHEDULE_FILE = f"data_{user_prefix}_schedule.json"
+SOCIAL_POSTS_FILE = f"data_{user_prefix}_social_posts_queue.json"
+IDEAS_FILE = f"data_{user_prefix}_ideas.json"
+TODOS_FILE = f"data_{user_prefix}_todos.json"
+
+# ==============================================================================
 # DESIGN & THEME VERWALTUNG (SEITENLEISTE)
 # ==============================================================================
 settings_db = load_data(SETTINGS_FILE, dict)
-current_user = st.session_state["username"]
 
 if current_user not in settings_db:
     settings_db[current_user] = {"theme": "Dark", "accent": "Pastell Ozean (Blau)"}
@@ -233,6 +239,7 @@ tab_anleitung, tab_stats, tab_ideas, tab_discord, tab_schedule, tab_freepost, ta
     "🛠️ Technik & Tools"
 ])
 
+# Lade nutzerspezifische Daten
 stats_daten = load_data(DB_FILE, list)
 webhook_profile = load_data(WEBHOOKS_FILE, dict)
 schedule_daten = load_data(SCHEDULE_FILE, list)
