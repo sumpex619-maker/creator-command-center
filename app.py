@@ -229,15 +229,13 @@ with col_logout:
 
 st.markdown(f"**Eingeloggt als:** `{current_user}`")
 
-# NEU: tab_hashtags hinzugefügt
-tab_anleitung, tab_stats, tab_ideas, tab_discord, tab_schedule, tab_freepost, tab_hashtags, tab_tools = st.tabs([
+tab_anleitung, tab_stats, tab_ideas, tab_discord, tab_schedule, tab_freepost, tab_tools = st.tabs([
     "📖 Anleitung",
     "📊 Social Media Stats", 
     "📝 Ideen & To-Dos",
     "💬 Webhook Verwaltung", 
     "📅 Streaming-Planer",
     "📢 Freies Posten",
-    "🏷️ Hashtag Generator",
     "🛠️ Technik & Tools"
 ])
 
@@ -266,7 +264,6 @@ with tab_anleitung:
     * **📝 Ideen & To-Dos:** Deine Zettelwirtschaft hat ein Ende. Sammle Geistesblitze für neue Videos im Ideen-Pool und hake Aufgaben (z.B. "Thumbnail bauen") vor dem Upload ab.
     * **📅 Streaming-Planer:** Trage deine Stream-Zeiten für die Woche ein und poste den fertigen Kalender mit einem Klick in der passenden Farbe auf Discord.
     * **📢 Freies Posten:** Nutze dieses Tab, um unabhängig von Streams oder Videos spontane Eilmeldungen, Memes oder Gaming-News im schicken "Embed"-Design an deinen Server zu senden.
-    * **🏷️ Hashtag Generator:** Finde die perfekten, algorithmus-freundlichen Hashtags und SEO-Keywords nach modernsten 2026 Standards.
     * **🛠️ Technik & Tools:** Eine kleine Schatzkiste! Wenn du OBS-Alerts einrichten willst, Empfehlungen für Chat-Bots suchst oder schnell einen neuen Chat-Befehl (wie `!hug` oder `!lurk`) erstellen lassen willst, bist du hier richtig.
     
     ---
@@ -366,15 +363,13 @@ with tab_stats:
 
     with subtab_posts_discord:
         st.subheader("📢 Content-Release bewerben")
-        st.info("Damit YouTube, X (Twitter) & Co. ein schickes Thumbnail in Discord generieren, packt dieses Tool deine Links nun intelligent in die normale Nachricht statt in den unsichtbaren Embed-Bereich!")
-        
         col_queue_form, col_queue_view = st.columns([1, 1])
         
         with col_queue_form:
-            p_plattform = st.selectbox("Plattform", ["Twitch", "YouTube", "Instagram", "TikTok", "Kick", "X"], key="q_plat")
+            p_plattform = st.selectbox("Plattform", ["Twitch", "YouTube", "Instagram", "TikTok", "Kick"], key="q_plat")
             p_titel = st.text_input("Titel des Videos / Beitrags", placeholder="z.B. 100 Tage in Minecraft!", key="q_tit")
             p_format = st.text_input("Format (z.B. Reel, Short, XXL-Video)", key="q_form")
-            p_link = st.text_input("Link zum Beitrag (Wichtig für Vorschau)", placeholder="https://...", key="q_link")
+            p_link = st.text_input("Link zum Beitrag (Optional)", placeholder="https://...", key="q_link")
             p_text = st.text_area("Beitragstext / Caption (Optional)", placeholder="Schreibe hier einen coolen Text für deine Community...", key="q_text")
             
             if st.button("➕ Beitrag in Warteschlange legen", type="secondary"):
@@ -418,20 +413,14 @@ with tab_stats:
             
             if soc_post_mode == "Alle offenen Beiträge zusammen posten":
                 default_bulk_desc = "Es gibt frischen Content auf meinen Kanälen! Schaut unbedingt mal rein: \n\n"
-                bulk_links = []
                 for p in social_queue: 
                     default_bulk_desc += f"📱 **{p['plattform']} [{p['format']}]**\n📌 *{p['titel']}*\n"
-                    if p.get("text"): default_bulk_desc += f"💬 *{p['text']}*\n\n"
-                    else: default_bulk_desc += "\n"
+                    if p.get("text"): default_bulk_desc += f"💬 *{p['text']}*\n"
+                    default_bulk_desc += (f"🔗 {p['link']}\n\n" if p['link'] else "\n")
                     
-                    if p['link']: bulk_links.append(p['link'])
-                
-                # Links werden in den Content (Ping) gepackt, damit Discord sie rendern kann
-                default_ping = f"{soc_ping_text}🔥 CONTENT OUT NOW!\n\n" + "\n".join(bulk_links)
-                edit_soc_ping = st.text_area("Ping & Links (Wichtig für Bildervorschau)", value=default_ping, height=100, key="edit_soc_p_bulk")
+                edit_soc_ping = st.text_input("Ping", value=f"{soc_ping_text}🔥 CONTENT OUT NOW!", key="edit_soc_p_bulk")
                 edit_soc_title = st.text_input("Embed-Titel", value="🎬 NEUE POSTS", key="edit_soc_t_bulk")
                 edit_soc_desc = st.text_area("Embed-Beschreibung", value=default_bulk_desc, height=250, key="edit_soc_d_bulk")
-                
                 if st.button("📢 Bulk senden", type="primary"):
                     success, msg = send_discord_webhook(active_soc_profile["url"], text_content=edit_soc_ping, embed_data={"title": edit_soc_title, "description": edit_soc_desc, "color": COLORS.get(active_soc_profile["plattform"], COLORS["Allgemein"])})
                     if success: st.success("Senden erfolgreich!")
@@ -441,23 +430,15 @@ with tab_stats:
                 post_options = {f"{p['plattform']} - {p['titel']}": p for p in social_queue}
                 chosen_post_key = st.selectbox("Beitrag laden:", list(post_options.keys()))
                 sel_p = post_options[chosen_post_key]
-                
                 default_single_desc = f"Neuer Post online!\n\n🔹 **Format:** {sel_p['format']}\n📌 **Thema:** {sel_p['titel']}"
                 if sel_p.get("text"): default_single_desc += f"\n\n💬 **Was gibts dazu zu sagen:**\n{sel_p['text']}"
+                default_single_desc += (f"\n\n🔗 **Link:** {sel_p['link']}" if sel_p['link'] else "")
                 
-                # Link wandert in den Ping
-                default_ping = f"{soc_ping_text}Neues Video!\n{sel_p['link']}" if sel_p['link'] else f"{soc_ping_text}Neues Video!"
-                
-                edit_soc_ping = st.text_input("Ping & Link (Wichtig für Bildervorschau)", value=default_ping, key="edit_soc_p_single")
+                edit_soc_ping = st.text_input("Ping", value=f"{soc_ping_text}Neues Video!", key="edit_soc_p_single")
                 edit_soc_title = st.text_input("Embed-Titel", value=f"🎬 NEW UPLOAD: {sel_p['plattform'].upper()}", key="edit_soc_t_single")
                 edit_soc_desc = st.text_area("Embed-Beschreibung", value=default_single_desc, height=200, key="edit_soc_d_single")
-                
                 if st.button("📢 Einzeln senden", type="primary"):
-                    # Die URL setzen wir auch nochmal ins Embed, falls jemand auf den Titel klickt
-                    embed_payload = {"title": edit_soc_title, "description": edit_soc_desc, "color": COLORS.get(sel_p["plattform"], COLORS["Allgemein"])}
-                    if sel_p['link']: embed_payload["url"] = sel_p['link']
-                        
-                    success, msg = send_discord_webhook(active_soc_profile["url"], text_content=edit_soc_ping, embed_data=embed_payload)
+                    success, msg = send_discord_webhook(active_soc_profile["url"], text_content=edit_soc_ping, embed_data={"title": edit_soc_title, "description": edit_soc_desc, "color": COLORS.get(sel_p["plattform"], COLORS["Allgemein"])})
                     if success: st.success("Senden erfolgreich!")
                     else: st.error(msg)
 
@@ -579,7 +560,7 @@ with tab_discord:
                 st.rerun()
 
     with col_list:
-        st.write("### 📋 Gespeicherte Profile")
+        st.write("### 💡 Gespeicherte Profile")
         if not webhook_profile: st.info("Noch keine Profile angelegt.")
         else:
             for prof_name, data in webhook_profile.items():
@@ -591,30 +572,24 @@ with tab_discord:
                         st.rerun()
 
 # ==============================================================================
-# TAB 4: STREAMING-PLANER (GEFIXED: Speichern reagiert nun)
+# TAB 4: STREAMING-PLANER (JETZT MIT SMART-WEBHOOK VERBINDUNG)
 # ==============================================================================
 with tab_schedule:
     subtab_plan, subtab_post = st.tabs(["✍️ Sendeplan erstellen", "🚀 Plan an Discord senden"])
     with subtab_plan:
         col_form, col_view = st.columns([1, 1])
         with col_form:
-            # GEFIXED: Streamlit Forms verhindern, dass Felder beim Speichern seltsam reagieren
-            with st.form("schedule_entry_form", clear_on_submit=True):
-                st.markdown("### Neuer Stream")
-                stream_title = st.text_input("Stream-Thema")
-                stream_day = st.selectbox("Wochentag", WOCHENTAGE)
-                stream_time = st.time_input("Startzeit", time(19, 0))
-                stream_platform = st.selectbox("Plattform", ["Twitch", "YouTube", "Kick", "TikTok", "Sonstiges"])
-                
-                submitted = st.form_submit_button("➕ In Plan eintragen")
-                if submitted:
-                    if not stream_title: 
-                        st.error("Thema fehlt!")
-                    else:
-                        schedule_daten.append({"id": str(datetime.now().timestamp()), "titel": stream_title, "tag": stream_day, "uhrzeit": stream_time.strftime("%H:%M"), "plattform": stream_platform})
-                        save_data(SCHEDULE_FILE, schedule_daten)
-                        st.toast("✓ Erfolgreich in den Sendeplan eingetragen!")
-                        st.rerun()
+            stream_title = st.text_input("Stream-Thema", key="sched_tit")
+            stream_day = st.selectbox("Wochentag", WOCHENTAGE, key="sched_day")
+            stream_time = st.time_input("Startzeit", time(19, 0), key="sched_time")
+            stream_platform = st.selectbox("Plattform", ["Twitch", "YouTube", "Kick", "TikTok", "Sonstiges"], key="sched_plat")
+            if st.button("➕ In Plan eintragen", type="secondary", key="add_stream_btn"):
+                if not stream_title: st.error("Thema fehlt!")
+                else:
+                    schedule_daten.append({"id": str(datetime.now().timestamp()), "titel": stream_title, "tag": stream_day, "uhrzeit": stream_time.strftime("%H:%M"), "plattform": stream_platform})
+                    save_data(SCHEDULE_FILE, schedule_daten)
+                    st.success("✓ Eingetragen!")
+                    st.rerun()
                     
         with col_view:
             if not schedule_daten: st.info("Dein Plan ist leer.")
@@ -633,16 +608,26 @@ with tab_schedule:
                                 st.rerun()
 
     with subtab_post:
-        if not webhook_profile: st.error("⚠️ Bitte lege zuerst ein Profil an!")
-        elif not schedule_daten: st.info("Dein Sendeplan ist leer.")
+        if not webhook_profile: 
+            st.error("⚠️ Bitte lege zuerst ein Profil an!")
+        elif not schedule_daten: 
+            st.info("Dein Sendeplan ist leer.")
         else:
-            selected_prof_name = st.selectbox("Über welches Profil posten?", list(webhook_profile.keys()), key="sched_prof_select")
-            active_profile = webhook_profile[selected_prof_name]
-            ping_text = f"<@&{active_profile['role_id']}> " if active_profile["role_id"] and active_profile["role_id"].lower() not in ["everyone", "here"] else (f"@{active_profile['role_id']} " if active_profile["role_id"] else "")
-
             post_mode = st.radio("Was senden?", ["Ganzen Wochenplan", "Einzelnen Stream"], horizontal=True, key="sched_post_mode")
+            prof_keys = list(webhook_profile.keys())
             
             if post_mode == "Ganzen Wochenplan":
+                # Smart Default: Sucht nach Profil mit "Sendeplan" im Namen oder Typ "Sendeplan / Kalender"
+                default_index = 0
+                for i, k in enumerate(prof_keys):
+                    if "sendeplan" in k.lower() or webhook_profile[k].get("plattform") == "Sendeplan / Kalender":
+                        default_index = i
+                        break
+                
+                selected_prof_name = st.selectbox("Über welches Profil posten?", prof_keys, index=default_index, key="sched_prof_select_bulk")
+                active_profile = webhook_profile[selected_prof_name]
+                ping_text = f"<@&{active_profile['role_id']}> " if active_profile["role_id"] and active_profile["role_id"].lower() not in ["everyone", "here"] else (f"@{active_profile['role_id']} " if active_profile["role_id"] else "")
+
                 default_desc = ""
                 for tag in WOCHENTAGE:
                     tag_streams = [s for s in schedule_daten if s["tag"] == tag]
@@ -654,6 +639,7 @@ with tab_schedule:
                 edit_ping = st.text_input("Text & Ping", value=f"{ping_text}Hier ist der Sendeplan!", key="ed_p_bulk")
                 edit_title = st.text_input("Titel", value="📅 STREAMINGPLAN DIESE WOCHE", key="ed_t_bulk")
                 edit_desc = st.text_area("Beschreibung", value=default_desc, height=250, key="ed_d_bulk")
+                
                 if st.button("📢 Wochenplan absenden", type="primary", key="send_sched_bulk"):
                     success, msg = send_discord_webhook(active_profile["url"], text_content=edit_ping, embed_data={"title": edit_title, "description": edit_desc, "color": COLORS.get(active_profile["plattform"], COLORS["Allgemein"])})
                     if success: st.success("Sendeplan abgeschickt!")
@@ -663,10 +649,25 @@ with tab_schedule:
                 stream_options = {f"{s['tag']} ({s['uhrzeit']}) - {s['titel']}": s for s in schedule_daten}
                 chosen_key = st.selectbox("Welchen Stream ankündigen?", list(stream_options.keys()), key="chosen_single_stream")
                 chosen_stream = stream_options[chosen_key]
+                
+                # Smart Default: Versucht den Webhook der exakten Stream-Plattform (z.B. Twitch) zu laden
+                default_index = 0
+                for i, k in enumerate(prof_keys):
+                    if webhook_profile[k].get("plattform").lower() == chosen_stream["plattform"].lower():
+                        default_index = i
+                        break
+                    elif "sendeplan" in k.lower():
+                        default_index = i
+                
+                selected_prof_name = st.selectbox("Über welches Profil posten?", prof_keys, index=default_index, key="sched_prof_select_single")
+                active_profile = webhook_profile[selected_prof_name]
+                ping_text = f"<@&{active_profile['role_id']}> " if active_profile["role_id"] and active_profile["role_id"].lower() not in ["everyone", "here"] else (f"@{active_profile['role_id']} " if active_profile["role_id"] else "")
+
                 default_desc = f"Am **{chosen_stream['tag']}** gehen wir um **{chosen_stream['uhrzeit']} Uhr** live!\n\n🎮 **Thema:** {chosen_stream['titel']}"
                 edit_ping = st.text_input("Text & Ping", value=f"{ping_text}Wir gehen live!", key="ed_p_single")
                 edit_title = st.text_input("Titel", value=f"🔔 LIVE-ANKÜNDIGUNG: {chosen_stream['plattform'].upper()}", key="ed_t_single")
                 edit_desc = st.text_area("Beschreibung", value=default_desc, height=150, key="ed_d_single")
+                
                 if st.button("📢 Einzelnen Stream absenden", type="primary", key="send_sched_single"):
                     success, msg = send_discord_webhook(active_profile["url"], text_content=edit_ping, embed_data={"title": edit_title, "description": edit_desc, "color": COLORS.get(chosen_stream["plattform"], COLORS["Allgemein"])})
                     if success: st.success("Ankündigung abgeschickt!")
@@ -692,12 +693,12 @@ with tab_freepost:
 
         if post_style == "Schickes Embed (Empfohlen)":
             st.markdown("### 📝 Embed Builder")
-            f_ping = st.text_input("Nachricht & Links außerhalb des Embeds", value=f"{ping_str}Neue Info!", key="fp_ping", help="Packe wichtige Links (wie X, YouTube) in dieses Feld, damit Discord automatisch ein Thumbnail rendert.")
+            f_ping = st.text_input("Nachricht außerhalb des Embeds (inkl. Ping)", value=f"{ping_str}Neue Info!", key="fp_ping")
             f_title = st.text_input("Titel des Embeds", placeholder="z.B. 🎮 EILMELDUNG: Neues Update ist da!", key="fp_title")
             f_desc = st.text_area("Beschreibung / Text", height=200, placeholder="Schreibe hier deinen ausführlichen Text...", key="fp_desc")
             
             c_img, c_col = st.columns(2)
-            with c_img: f_img = st.text_input("Bild-URL (Optional für das Embed)", placeholder="https://beispiel.de/bild.jpg", key="fp_img")
+            with c_img: f_img = st.text_input("Bild-URL (Optional)", placeholder="https://beispiel.de/bild.jpg", key="fp_img")
             with c_col:
                 default_hex = PLOT_COLORS.get(active_free_prof.get("plattform", "Sonstiges"), "#9146FF")
                 f_color = st.color_picker("Farbe des Embed-Randes", value=default_hex, key="fp_color")
@@ -725,73 +726,8 @@ with tab_freepost:
                     if success: st.success("Nachricht erfolgreich gesendet!")
                     else: st.error(msg)
 
-
 # ==============================================================================
-# TAB 6: NEU - HASHTAG GENERATOR (2026 Standard)
-# ==============================================================================
-with tab_hashtags:
-    st.subheader("🏷️ Smart Hashtag & SEO Generator (2026 Standards)")
-    st.write("Im Jahr 2026 werten Social Media Algorithmen massenhaftes Spammen von Hashtags ab. Es geht primär um Kontext! Dieser Generator erstellt einen smarten Mix aus Keywords für deine Caption (SEO) und gezielten Tags.")
-
-    col_h_input, col_h_info = st.columns([1, 1])
-    
-    with col_h_input:
-        tag_keyword = st.text_input("Gib ein Hauptstichwort ein:", placeholder="z.B. Minecraft, Vlogs, Setup...")
-        tag_platform = st.selectbox("Für welche Plattform planst du den Upload?", ["TikTok", "Instagram", "YouTube Shorts", "X (Twitter)"])
-        
-        btn_generate_tags = st.button("🚀 Hashtags generieren", type="primary")
-
-    with col_h_info:
-        if tag_platform == "TikTok":
-            st.info("💡 **TikTok 2026 Tipp:** Nutze nur 3-5 sehr spezifische Tags + 1 breiten Tag (z.B. #fy). Packe den Rest als normale Keywords in den unsichtbaren Textbereich deines Videos oder erwähne die Wörter im Voiceover!")
-        elif tag_platform == "Instagram":
-            st.info("💡 **Instagram 2026 Tipp:** Max 3 bis 5 Hashtags. Der Algorithmus liest mittlerweile primär den Text in deinem Video (Text-Sticker) und die normale Caption, um es an die Explore-Page anzupassen.")
-        elif tag_platform == "YouTube Shorts":
-            st.info("💡 **YouTube Shorts 2026 Tipp:** Dein Video-Titel ist das wichtigste SEO-Element! Setze #shorts und dein stärkstes Keyword direkt in den Titel. Tags in der Beschreibung sind zweitrangig.")
-        elif tag_platform == "X (Twitter)":
-            st.info("💡 **X (Twitter) 2026 Tipp:** Bleibe bei 1 bis maximal 2 Hashtags im Fließtext. Bilder oder kurze Videoclips erhöhen die Sichtbarkeit massiv im Vergleich zu reinen Text-Posts.")
-
-    st.write("---")
-    
-    if btn_generate_tags:
-        if not tag_keyword:
-            st.error("⚠️ Bitte gib zuerst ein Stichwort ein!")
-        else:
-            # Stichwort bereinigen (Leerzeichen & # entfernen)
-            kw_clean = tag_keyword.replace(" ", "").replace("#", "").capitalize()
-            kw_lower = kw_clean.lower()
-
-            # Listen generieren
-            broad_tags = [f"#{kw_clean}", f"#{kw_lower}community", f"#{kw_lower}content", "#gaming" if any(w in kw_lower for w in ["game", "play", "rpg", "fps"]) else "#creator"]
-            niche_tags = [f"#{kw_lower}2026", f"#{kw_lower}tipps", f"#{kw_lower}moments", f"#{kw_lower}deutsch"]
-            
-            platform_specific = []
-            if tag_platform == "TikTok":
-                platform_specific = ["#fy", "#viral2026", "#tiktokdeutschland"]
-            elif tag_platform == "Instagram":
-                platform_specific = ["#explorepage", "#reelsdeutsch"]
-            elif tag_platform == "YouTube Shorts":
-                platform_specific = ["#shorts", "#youtubeshorts"]
-            elif tag_platform == "X (Twitter)":
-                platform_specific = ["#trending"]
-
-            # Duplikate entfernen und mischen
-            all_generated = list(dict.fromkeys(broad_tags + niche_tags + platform_specific))
-            
-            st.markdown("### 🎯 Deine berechneten Hashtag-Sets:")
-            
-            c_tag1, c_tag2 = st.columns(2)
-            with c_tag1:
-                st.text_area("Mix 1: Nische & Fokus (Am besten für Zielgruppen)", value=" ".join(all_generated[:5]), height=80)
-            with c_tag2:
-                st.text_area("Mix 2: Breit gefächert (Für allgemeine Entdeckung)", value=" ".join(all_generated[3:8]), height=80)
-
-            st.markdown("### 🔍 SEO Keywords für deine Beschreibung (Caption):")
-            st.write(f"Viel wichtiger als Hashtags! Baue diese Phrasen **organisch in deine normalen Sätze** im Beitrag ein:")
-            st.code(f"• {kw_clean} Tipps für Anfänger\n• Meine besten {kw_clean} Momente 2026\n• Alles Neue rund um {kw_clean}\n• {kw_clean} Gameplay auf Deutsch", language="text")
-
-# ==============================================================================
-# TAB 7: TECHNIK & TOOLS
+# TAB 6: TECHNIK & TOOLS
 # ==============================================================================
 with tab_tools:
     st.header("🛠️ Technik, Tools & Guides")
@@ -920,7 +856,7 @@ with tab_tools:
             st.info(f"**Beispiel-Ausgabe im Chat:** *Schaut unbedingt vorbei bei ZielNutzer! Link: twitch.tv/ZielNutzer*")
             cmd_name = st.text_input("Befehlsname", value="!so")
             so_text = st.text_input("Dein Empfehlungstext", value="Schaut unbedingt vorbei bei")
-            cmd_msg = f"{so_text} {v_touser}! Hier lang: https://twitch.tv/{v_touser}"
+            cmd_msg = f"{so_text} {v_touser}! Here lang: https://twitch.tv/{v_touser}"
             
         else: # Einfacher Text
             st.info("Hier kannst du völlig frei schreiben. Wenn du Namen erwähnen willst, nutze die Platzhalter.")
