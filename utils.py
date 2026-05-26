@@ -1,5 +1,6 @@
 import streamlit as st
-import sqlite3
+import psycopg2
+from psycopg2.extras import DictCursor
 import hashlib
 import requests
 import json
@@ -7,7 +8,6 @@ import json
 # ==============================================================================
 # GLOBALE KONFIGURATION & FARBEN
 # ==============================================================================
-DB_FILE = "command_center.db"
 WOCHENTAGE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 
 COLORS = {
@@ -18,16 +18,6 @@ COLORS = {
     "Instagram": 14619428, 
     "Sendeplan / Kalender": 16766720,
     "Allgemein": 5793266 
-}
-
-PLOT_COLORS = {
-    "Twitch": "#9146FF",
-    "YouTube": "#FF0000",
-    "Kick": "#53FC18",
-    "TikTok": "#010101",
-    "Instagram": "#E1306C",
-    "Sendeplan / Kalender": "#FFD700",
-    "Sonstiges": "#5865F2"
 }
 
 THEME_COLORS = {
@@ -44,19 +34,18 @@ THEME_COLORS = {
 }
 
 # ==============================================================================
-# DATENBANK INITIALISIERUNG
+# SUPABASE POSTGRES CONNECTION
 # ==============================================================================
 def get_db_connection():
-    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
+    db_url = st.secrets["DATABASE_URL"]
+    conn = psycopg2.connect(db_url, cursor_factory=DictCursor)
     return conn
 
 def init_db():
-    """Erstellt alle benötigten Tabellen, falls sie noch nicht existieren."""
+    """Erstellt alle benötigten Tabellen in Supabase, falls sie fehlen."""
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. Benutzer-Tabelle
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         username TEXT PRIMARY KEY,
@@ -65,10 +54,9 @@ def init_db():
         accent TEXT DEFAULT 'Pastell Ozean (Blau)'
     )""")
     
-    # 2. Webhooks-Tabelle
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS webhooks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         username TEXT,
         profile_name TEXT,
         url TEXT,
@@ -77,7 +65,6 @@ def init_db():
         UNIQUE(username, profile_name)
     )""")
     
-    # 3. JSON-Fallback-Tabelle
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS user_data (
         username TEXT,
@@ -87,13 +74,14 @@ def init_db():
     )""")
     
     conn.commit()
+    cursor.close()
     conn.close()
 
-# Datenbank sofort beim Import starten
+# Datenbank beim Start prüfen/initialisieren
 init_db()
 
 # ==============================================================================
-# NEUE DATENBANK-FUNKTIONEN (ERSATZ FÜR JSON)
+# FUNKTIONEN FÜR DIE UNTERSEITEN (DATENBANK-BACKEND)
 # ==============================================================================
 def load_data(file_or_type, default_factory):
     data_type = file_or_type.replace(".json", "").replace("data_", "")
@@ -105,8 +93,9 @@ def load_data(file_or_type, default_factory):
     
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT json_content FROM user_data WHERE username = ? AND data_type = ?", (username, data_type))
+    cursor.execute("SELECT json_content FROM user_data WHERE username = %s AND data_type = %s", (username, data_type))
     row = cursor.fetchone()
+    cursor.close()
     conn.close()
     
     if row:
@@ -126,10 +115,13 @@ def save_data(file_or_type, data):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT OR REPLACE INTO user_data (username, data_type, json_content)
-        VALUES (?, ?, ?)
+        INSERT INTO user_data (username, data_type, json_content)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (username, data_type) 
+        DO UPDATE SET json_content = EXCLUDED.json_content
     """, (username, data_type, json_string))
     conn.commit()
+    cursor.close()
     conn.close()
 
 # ==============================================================================
