@@ -4,6 +4,7 @@ from psycopg2.extras import DictCursor
 import hashlib
 import requests
 import json
+import re
 
 # ==============================================================================
 # GLOBALE KONFIGURATION & FARBEN
@@ -129,8 +130,35 @@ def save_data(file_or_type, data):
 # ==============================================================================
 def send_discord_webhook(url, text_content=None, embed_data=None):
     payload = {}
-    if text_content: payload["content"] = text_content
-    if embed_data: payload["embeds"] = [embed_data]
+    
+    # 1. URL Extraktion: Wenn ein Link in der Description des Embeds steht, 
+    # ziehen wir ihn raus, um ihn als normalen Text zu senden (für die Vorschau!)
+    extracted_link = ""
+    if embed_data and "description" in embed_data:
+        # Sucht nach http/https Links im Text
+        urls = re.findall(r'(https?://[^\s]+)', embed_data["description"])
+        if urls:
+            extracted_link = urls[0]
+            # Optional: Link aus der Description entfernen, wenn er oben im Text steht
+            # embed_data["description"] = embed_data["description"].replace(extracted_link, "").strip()
+
+    # 2. Content zusammenbauen
+    final_content = []
+    if text_content:
+        final_content.append(text_content)
+    
+    # Wenn wir einen Link gefunden haben (oder er schon im text_content war), 
+    # hängen wir ihn als normalen Text an, damit Discord die Vorschau lädt.
+    if extracted_link and extracted_link not in str(text_content):
+        final_content.append(f"\n{extracted_link}")
+        
+    if final_content:
+        payload["content"] = "\n".join(final_content).strip()
+
+    # 3. Embed anhängen
+    if embed_data: 
+        payload["embeds"] = [embed_data]
+        
     try:
         response = requests.post(url, json=payload)
         if response.status_code in [200, 204]: 
