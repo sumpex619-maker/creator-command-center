@@ -8,145 +8,136 @@ import utils
 # SEITEN-KONFIGURATION & LOGIN-CHECK
 # ==============================================================================
 current_user = utils.check_login()
-st.title("📊 Statistiken & API-Hub")
+st.title("📊 Social Media Stats & Content-Bewerbung")
 
 # ==============================================================================
-# 1. API EINSTELLUNGEN (Individuell pro Nutzer)
+# TABS FÜR DAS LAYOUT (Wie auf deinem Screenshot)
 # ==============================================================================
-with st.expander("⚙️ API-Zugangsdaten (Für automatischen Datenabruf)", expanded=False):
-    st.markdown("""
-    Hier kannst du deine persönlichen Zugangsdaten für Social Media Plattformen hinterlegen.
-    Die Daten werden sicher und nur für **deinen** Account in der Datenbank gespeichert.
-    """)
+tab_eingabe, tab_auswertung, tab_bewerben = st.tabs([
+    "📝 Eingabe & Historie", 
+    "📈 Visuelle Auswertung", 
+    "📢 Content-Release bewerben"
+])
+
+# ------------------------------------------------------------------------------
+# TAB 1: EINGABE & HISTORIE
+# ------------------------------------------------------------------------------
+with tab_eingabe:
+    st.header("Social Media Stats erfassen")
     
-    # Lade bestehende YouTube Credentials
-    yt_creds = utils.load_api_credentials(current_user, "YouTube")
-    yt_channel_id = yt_creds["channel_id"] if yt_creds else ""
-    yt_api_key = yt_creds["api_key"] if yt_creds else ""
-    
-    with st.form("api_settings_form"):
-        st.subheader("YouTube")
-        new_yt_channel = st.text_input("YouTube Channel ID", value=yt_channel_id, help="Z.B. UCxyz123...")
-        new_yt_key = st.text_input("YouTube API Key", type="password", value=yt_api_key)
+    # --- NEU: Der einklappbare API-Bereich ganz oben ---
+    with st.expander("⚙️ API-Zugangsdaten & Automatischer YouTube-Abruf", expanded=False):
+        st.markdown("Hinterlege hier einmalig deine YouTube-API-Daten, um Live-Zahlen mit einem Klick abzurufen.")
         
-        submitted = st.form_submit_button("💾 API-Daten speichern")
-        if submitted:
-            utils.save_api_credentials(current_user, "YouTube", new_yt_channel, new_yt_key)
-            st.success("✅ YouTube API-Daten erfolgreich gespeichert!")
-            st.rerun()
-
-# ==============================================================================
-# 2. DATEN ABRUFEN & EINGEBEN
-# ==============================================================================
-st.markdown("---")
-st.header("📈 Neue Daten erfassen")
-
-col1, col2 = st.columns(2)
-
-# Spalte 1: Automatischer Abruf (YouTube)
-with col1:
-    st.subheader("🤖 Auto-Sync (YouTube)")
-    if st.button("🔄 YouTube Live-Daten jetzt abrufen", use_container_width=True):
-        with st.spinner("Frage YouTube API ab..."):
-            stats, error = utils.fetch_youtube_stats(current_user)
-            if error:
-                st.error(error)
-            else:
-                st.success("Erfolgreich abgerufen!")
-                # Hier wird der automatische Eintrag für die Datenbank vorbereitet
-                new_entry = {
-                    "datum": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "plattform": "YouTube (Auto-Sync)",
-                    "format": "Kanal-Overview",
-                    "titel": "Live Stats",
-                    "views": stats["views"],
-                    "likes": 0, # API liefert keine globalen Likes
-                    "kommentare": 0,
-                    "saves": stats["subscribers"], # Wir nutzen das 'Saves' Feld hier für Abonnenten
-                    "engagement_rate_pct": 0.0
-                }
-                # Speichern des neuen Eintrags
-                current_stats = utils.load_data("stats", list)
-                current_stats.append(new_entry)
-                utils.save_data("stats", current_stats)
-                st.info(f"**Abonnenten:** {stats['subscribers']} | **Views gesamt:** {stats['views']}")
-                st.rerun()
-
-# Spalte 2: Manuelle Eingabe (Für Insta & Co)
-with col2:
-    st.subheader("✍️ Manuelle Eingabe")
-    with st.popover("Neuen Beitrag eintragen"):
-        with st.form("manual_stats_form"):
-            man_plat = st.selectbox("Plattform", ["Instagram", "TikTok", "Twitter", "Twitch"])
-            man_format = st.selectbox("Format", ["Feed-Post", "Reel / Short", "Story", "Stream"])
-            man_title = st.text_input("Titel / Beschreibung")
-            man_views = st.number_input("Views / Reichweite", min_value=0, step=1)
-            man_likes = st.number_input("Likes", min_value=0, step=1)
+        yt_creds = utils.load_api_credentials(current_user, "YouTube")
+        yt_channel_id = yt_creds["channel_id"] if yt_creds else ""
+        yt_api_key = yt_creds["api_key"] if yt_creds else ""
+        
+        with st.form("api_settings_form"):
+            col_api1, col_api2 = st.columns(2)
+            new_yt_channel = col_api1.text_input("YouTube Channel ID", value=yt_channel_id)
+            new_yt_key = col_api2.text_input("YouTube API Key", type="password", value=yt_api_key)
             
-            if st.form_submit_button("Eintragen"):
-                engagement = (man_likes / man_views * 100) if man_views > 0 else 0
-                new_entry = {
-                    "datum": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "plattform": man_plat,
-                    "format": man_format,
-                    "titel": man_title,
-                    "views": man_views,
-                    "likes": man_likes,
-                    "kommentare": 0,
-                    "saves": 0,
-                    "engagement_rate_pct": round(engagement, 2)
-                }
-                current_stats = utils.load_data("stats", list)
-                current_stats.append(new_entry)
-                utils.save_data("stats", current_stats)
-                st.success("Eingetragen!")
+            if st.form_submit_button("💾 API-Daten speichern"):
+                utils.save_api_credentials(current_user, "YouTube", new_yt_channel, new_yt_key)
+                st.success("✅ YouTube API-Daten erfolgreich gespeichert!")
                 st.rerun()
+                
+        st.markdown("---")
+        if st.button("🔄 YouTube Live-Daten jetzt abrufen", use_container_width=True):
+            with st.spinner("Frage YouTube API ab..."):
+                stats, error = utils.fetch_youtube_stats(current_user)
+                if error:
+                    st.error(error)
+                else:
+                    new_entry = {
+                        "datum": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "plattform": "YouTube",
+                        "format": "Kanal-Overview (Auto)",
+                        "titel": "Live API Abruf",
+                        "views": stats["views"],
+                        "likes": 0,
+                        "kommentare": 0,
+                        "saves": stats["subscribers"], # Wir speichern Abonnenten in der Saves-Spalte
+                        "engagement_rate_pct": 0.0
+                    }
+                    current_stats = utils.load_data("stats", list)
+                    current_stats.append(new_entry)
+                    utils.save_data("stats", current_stats)
+                    st.success(f"Erfolgreich abgerufen! Abonnenten: {stats['subscribers']} | Views: {stats['views']}")
+                    st.rerun()
 
-# ==============================================================================
-# 3. DATEN-VISUALISIERUNG (Dashboard)
-# ==============================================================================
-st.markdown("---")
-st.header("📊 Dein Dashboard")
+    # --- DEIN ORIGINALES FORMULAR FÜR DIE MANUELLE EINGABE ---
+    st.markdown("---")
+    plattform = st.selectbox("Plattform wählen", ["Twitch", "YouTube", "Instagram", "TikTok", "Twitter", "Kick"])
+    titel = st.text_input("Titel / Thema des Contents", placeholder="z.B. Clip vom Let's Play Part 3")
+    format_art = st.selectbox("Format", ["Main-Stream", "Feed-Post", "Reel / Short", "Story", "Video"])
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        views = st.number_input("Views / Aufrufe", min_value=0, step=1, value=0)
+        likes = st.number_input("Likes", min_value=0, step=1, value=0)
+    with col2:
+        kommentare = st.number_input("Kommentare", min_value=0, step=1, value=0)
+        saves = st.number_input("Saves / Shares", min_value=0, step=1, value=0)
+        
+    # Engagement-Rate berechnen
+    engagement = 0.0
+    if views > 0:
+        engagement = ((likes + kommentare + saves) / views) * 100
+        
+    st.write(f"Berechnete Engagement-Rate ({plattform})")
+    st.subheader(f"{engagement:.2f} %")
+    
+    if st.button("Daten speichern", type="primary"):
+        new_entry = {
+            "datum": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "plattform": plattform,
+            "format": format_art,
+            "titel": titel,
+            "views": views,
+            "likes": likes,
+            "kommentare": kommentare,
+            "saves": saves,
+            "engagement_rate_pct": round(engagement, 2)
+        }
+        current_stats = utils.load_data("stats", list)
+        current_stats.append(new_entry)
+        utils.save_data("stats", current_stats)
+        st.success("✅ Daten erfolgreich gespeichert!")
+        st.rerun()
 
-# Lade alle Statistiken aus der Datenbank
-raw_stats = utils.load_data("stats", list)
-
-if not raw_stats:
-    st.info("Noch keine Daten vorhanden. Trage oben manuell etwas ein oder nutze den Auto-Sync!")
-else:
-    # Verwandle die Daten in ein Pandas DataFrame (perfekt für Diagramme)
-    df = pd.DataFrame(raw_stats)
-    # Datumstext in echtes Datum umwandeln, damit die Kurve richtig sortiert wird
-    df['datum'] = pd.to_datetime(df['datum'])
-    df = df.sort_values('datum')
+# ------------------------------------------------------------------------------
+# TAB 2: VISUELLE AUSWERTUNG
+# ------------------------------------------------------------------------------
+with tab_auswertung:
+    st.header("📈 Deine Performance im Überblick")
     
-    # Tabellen-Ansicht
-    with st.expander("📋 Rohdaten ansehen"):
-        st.dataframe(df, use_container_width=True, hide_index=True)
-    
-    # Diagramm 1: Ansichten über die Zeit (Getrennt nach Plattform)
-    st.subheader("👀 Views Entwicklung")
-    fig_views = px.line(
-        df, 
-        x="datum", 
-        y="views", 
-        color="plattform", 
-        markers=True,
-        title="Reichweite nach Plattform",
-        template="plotly_dark" if utils.load_data("users", list) else "plotly" # Passt sich ans Theme an (Basic)
-    )
-    st.plotly_chart(fig_views, use_container_width=True)
-    
-    # Wenn wir YouTube Auto-Sync Daten haben (wo wir Subscriber im "saves" Feld speichern)
-    df_yt = df[df["plattform"] == "YouTube (Auto-Sync)"]
-    if not df_yt.empty:
-        st.subheader("📈 YouTube Abonnenten Wachstum")
-        fig_subs = px.area(
-            df_yt,
-            x="datum",
-            y="saves",
+    raw_stats = utils.load_data("stats", list)
+    if not raw_stats:
+        st.info("Noch keine Daten vorhanden. Trage im ersten Tab etwas ein!")
+    else:
+        df = pd.DataFrame(raw_stats)
+        df['datum'] = pd.to_datetime(df['datum'])
+        df = df.sort_values('datum')
+        
+        with st.expander("📋 Alle Rohdaten als Tabelle ansehen"):
+            st.dataframe(df, use_container_width=True, hide_index=True)
+            
+        st.subheader("👀 Views Entwicklung")
+        fig_views = px.line(
+            df, 
+            x="datum", 
+            y="views", 
+            color="plattform", 
             markers=True,
-            title="Abonnenten-Kurve",
-            color_discrete_sequence=["#FF0000"] # YouTube Rot
+            title="Reichweite nach Plattform"
         )
-        st.plotly_chart(fig_subs, use_container_width=True)
+        st.plotly_chart(fig_views, use_container_width=True)
+
+# ------------------------------------------------------------------------------
+# TAB 3: CONTENT-RELEASE BEWERBEN
+# ------------------------------------------------------------------------------
+with tab_bewerben:
+    st.header("📢 Content bewerben")
+    st.info("Dieses Modul befindet sich noch im Aufbau. Hier kannst du später deine manuell eingetragenen Statistiken direkt per Webhook auf Discord pushen!")
