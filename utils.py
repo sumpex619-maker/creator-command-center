@@ -4,7 +4,6 @@ from psycopg2.extras import DictCursor
 import hashlib
 import requests
 import json
-import re
 
 # ==============================================================================
 # GLOBALE KONFIGURATION & FARBEN
@@ -131,34 +130,40 @@ def save_data(file_or_type, data):
 def send_discord_webhook(url, text_content=None, embed_data=None):
     payload = {}
     
-    # 1. URL Extraktion: Wenn ein Link in der Description des Embeds steht, 
-    # ziehen wir ihn raus, um ihn als normalen Text zu senden (für die Vorschau!)
-    extracted_link = ""
-    if embed_data and "description" in embed_data:
-        # Sucht nach http/https Links im Text
-        urls = re.findall(r'(https?://[^\s]+)', embed_data["description"])
-        if urls:
-            extracted_link = urls[0]
-            # Optional: Link aus der Description entfernen, wenn er oben im Text steht
-            # embed_data["description"] = embed_data["description"].replace(extracted_link, "").strip()
-
-    # 2. Content zusammenbauen
-    final_content = []
-    if text_content:
-        final_content.append(text_content)
-    
-    # Wenn wir einen Link gefunden haben (oder er schon im text_content war), 
-    # hängen wir ihn als normalen Text an, damit Discord die Vorschau lädt.
-    if extracted_link and extracted_link not in str(text_content):
-        final_content.append(f"\n{extracted_link}")
+    # Prüfen, ob irgendwo im Text oder Embed ein Medien-Link (YouTube/X) steckt
+    full_text_check = f"{text_content or ''} "
+    if embed_data:
+        full_text_check += f"{embed_data.get('title', '')} {embed_data.get('description', '')}"
         
-    if final_content:
-        payload["content"] = "\n".join(final_content).strip()
+    has_media_link = any(x in full_text_check for x in ["youtube.com/", "youtu.be/", "x.com/", "twitter.com/"])
 
-    # 3. Embed anhängen
-    if embed_data: 
-        payload["embeds"] = [embed_data]
+    # FALL A: Es ist ein Video-/Medien-Link dabei -> Embed auflösen, damit Discord die Vorschau generiert!
+    if has_media_link and embed_data:
+        text_pieces = []
         
+        # Pings oder Haupttext ganz nach oben (@community etc.)
+        if text_content:
+            text_pieces.append(text_content.strip())
+            
+        # Titel fett als Überschrift formatieren
+        if embed_data.get("title"):
+            text_pieces.append(f"**{embed_data['title'].strip()}**")
+            
+        # Beschreibung (wo auch der YouTube-Link drinsteht) anhängen
+        if embed_data.get("description"):
+            text_pieces.append(embed_data["description"].strip())
+            
+        # Alles zu einer sauberen Textnachricht zusammenfügen
+        payload["content"] = "\n\n".join(text_pieces)
+        # WICHTIG: Das 'embeds'-Feld wird bewusst weggelassen, um die Sperre aufzuheben!
+
+    # FALL B: Ganz normales Update ohne Video -> Nutze das klassische, farbige Embed-Design
+    else:
+        if text_content: 
+            payload["content"] = text_content
+        if embed_data: 
+            payload["embeds"] = [embed_data]
+            
     try:
         response = requests.post(url, json=payload)
         if response.status_code in [200, 204]: 
