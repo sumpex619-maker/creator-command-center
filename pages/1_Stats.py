@@ -11,7 +11,7 @@ current_user = utils.check_login()
 st.title("📊 Social Media Stats & Content-Bewerbung")
 
 # ==============================================================================
-# TABS FÜR DAS LAYOUT (Wie auf deinem Screenshot)
+# TABS FÜR DAS LAYOUT
 # ==============================================================================
 tab_eingabe, tab_auswertung, tab_bewerben = st.tabs([
     "📝 Eingabe & Historie", 
