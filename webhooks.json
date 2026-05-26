@@ -1,0 +1,37 @@
+{
+    "YouTube": {
+        "plattform": "Twitch",
+        "url": "https://discordapp.com/api/webhooks/1505641711462912132/mxHhqOae0VlsvhYuPGs-slKI5BjqeN_XLSVpQ9aTPRUc7rQMlfZsLZ1BbV7O7CcvPFXP",
+        "role_id": "1425835065128255510"
+    },
+    "Instagram": {
+        "plattform": "Instagram",
+        "url": "https://discordapp.com/api/webhooks/1505641711462912132/mxHhqOae0VlsvhYuPGs-slKI5BjqeN_XLSVpQ9aTPRUc7rQMlfZsLZ1BbV7O7CcvPFXP",
+        "role_id": "1425835065128255510"
+    },
+    "Tiktok": {
+        "plattform": "TikTok",
+        "url": "https://discordapp.com/api/webhooks/1505641711462912132/mxHhqOae0VlsvhYuPGs-slKI5BjqeN_XLSVpQ9aTPRUc7rQMlfZsLZ1BbV7O7CcvPFXP",
+        "role_id": "1425835065128255510"
+    },
+    "Streamingplan": {
+        "plattform": "Sendeplan / Kalender",
+        "url": "https://discordapp.com/api/webhooks/1505636709285761095/MqjtBMseZh7jxX1kBposmh-xIlBdrrRiLAE6plG864WjyCThni6C9oZb4ypdQK68f_tg",
+        "role_id": "1425835065128255510"
+    },
+    "Varity Gaming News": {
+        "plattform": "Allgemein",
+        "url": "https://discordapp.com/api/webhooks/1505643040646238228/dp37R-r4s6NZWxBg2Ye7vhq0uLPSRVXThdqlGtZp7BDGXP_JJLJKYBPUfZYCbTjEJb9x",
+        "role_id": "1447870290272059463"
+    },
+    "Pokemon News": {
+        "plattform": "Allgemein",
+        "url": "https://discordapp.com/api/webhooks/1505642759636389968/VfRNchQga68F-j3zH1nsNdlHCH4TbTsztEaT7wbTNWfrtjECAqImpX9_Y6ObqTpDU_z8",
+        "role_id": "1447869703203717353"
+    },
+    "Gran Turismo News": {
+        "plattform": "Allgemein",
+        "url": "https://discordapp.com/api/webhooks/1505642923302064410/_UfZdFyldRDawpl5eLixjT08K13M3SbZTWbmen8UJc1E3Z2L1NsQenkgTBNnOITTgv4u",
+        "role_id": "1447869988441554995"
+    }
+}

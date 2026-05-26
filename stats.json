@@ -1,0 +1,35 @@
+[
+    {
+        "datum": "2026-05-24 16:52:39",
+        "plattform": "Instagram",
+        "format": "Feed-Post",
+        "titel": "SCS Multiclass R1 ",
+        "views": 100,
+        "likes": 6,
+        "kommentare": 0,
+        "saves": 0,
+        "engagement_rate_pct": 6.0
+    },
+    {
+        "datum": "2026-05-24 16:54:25",
+        "plattform": "Instagram",
+        "format": "Feed-Post",
+        "titel": "ATM R2",
+        "views": 66,
+        "likes": 4,
+        "kommentare": 0,
+        "saves": 0,
+        "engagement_rate_pct": 6.06
+    },
+    {
+        "datum": "2026-05-24 16:55:56",
+        "plattform": "Instagram",
+        "format": "Feed-Post",
+        "titel": "SCS GT3 R2",
+        "views": 73,
+        "likes": 5,
+        "kommentare": 0,
+        "saves": 0,
+        "engagement_rate_pct": 6.85
+    }
+]
