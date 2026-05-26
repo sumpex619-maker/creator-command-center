@@ -1,129 +1,160 @@
 import streamlit as st
-import utils
+import sqlite3
+import hashlib
+import requests
+import json
 
-st.set_page_config(page_title="Creator Command Center", layout="wide")
+# ==============================================================================
+# GLOBALE KONFIGURATION & FARBEN
+# ==============================================================================
+DB_FILE = "command_center.db"
+WOCHENTAGE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-if "username" not in st.session_state:
-    st.session_state["username"] = ""
+COLORS = {
+    "Twitch": 9520895,   
+    "YouTube": 16711680, 
+    "Kick": 5504024,     
+    "TikTok": 65793,     
+    "Instagram": 14619428, 
+    "Sendeplan / Kalender": 16766720,
+    "Allgemein": 5793266 
+}
 
-if not st.session_state["logged_in"]:
-    st.title("🔒 Creator Command Center")
-    st.write("Bitte melde dich an oder erstelle einen neuen Account.")
+PLOT_COLORS = {
+    "Twitch": "#9146FF",
+    "YouTube": "#FF0000",
+    "Kick": "#53FC18",
+    "TikTok": "#010101",
+    "Instagram": "#E1306C",
+    "Sendeplan / Kalender": "#FFD700",
+    "Sonstiges": "#5865F2"
+}
+
+THEME_COLORS = {
+    "Pastell Ozean (Blau)": "#4A90E2",
+    "Salbeigrün": "#779C7B",
+    "Flieder (Lila)": "#9B82C2",
+    "Pfirsichrosa": "#D98880",
+    "Sandbeige": "#C2B280",
+    "Staubiges Rosa": "#C08497",
+    "Sanftes Mint": "#6BBF9F",
+    "Karibik Türkis": "#46A5B8",
+    "Nachtblau": "#34495E",
+    "Warmes Senfgelb": "#D4AC0D"
+}
+
+# ==============================================================================
+# DATENBANK INITIALISIERUNG
+# ==============================================================================
+def get_db_connection():
+    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    """Erstellt alle benötigten Tabellen, falls sie noch nicht existieren."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
     
-    col_login, _ = st.columns([1, 2])
-    with col_login:
-        tab_login, tab_register = st.tabs(["🔑 Anmelden", "📝 Registrieren"])
-        
-        # Verbindung zur DB für Login/Registrierung
-        conn = utils.get_db_connection()
-        
-        with tab_login:
-            user_login = st.text_input("Benutzername", key="login_user")
-            pwd_login = st.text_input("Passwort", type="password", key="login_pwd")
-            if st.button("Einloggen", type="primary", use_container_width=True):
-                cursor = conn.cursor()
-                cursor.execute("SELECT password FROM users WHERE username = ?", (user_login,))
-                row = cursor.fetchone()
-                
-                if row and row["password"] == utils.hash_password(pwd_login):
-                    st.session_state["logged_in"] = True
-                    st.session_state["username"] = user_login
-                    conn.close()
-                    st.rerun()
-                else:
-                    st.error("❌ Falscher Benutzername oder Passwort!")
-                    
-        with tab_register:
-            user_reg = st.text_input("Neuer Benutzername", key="reg_user")
-            pwd_reg = st.text_input("Neues Passwort", type="password", key="reg_pwd")
-            pwd_reg2 = st.text_input("Passwort bestätigen", type="password", key="reg_pwd2")
-            if st.button("Konto erstellen", use_container_width=True):
-                if not user_reg or not pwd_reg:
-                    st.error("⚠️ Bitte alle Felder ausfüllen!")
-                elif pwd_reg != pwd_reg2:
-                    st.error("⚠️ Die Passwörter stimmen nicht überein!")
-                elif len(pwd_reg) < 4:
-                    st.error("⚠️ Das Passwort muss mindestens 4 Zeichen lang sein!")
-                else:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT username FROM users WHERE username = ?", (user_reg,))
-                    if cursor.fetchone():
-                        st.error("⚠️ Dieser Benutzername ist bereits vergeben!")
-                    else:
-                        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (user_reg, utils.hash_password(pwd_reg)))
-                        conn.commit()
-                        st.success("✅ Konto erfolgreich erstellt! Du kannst dich jetzt einloggen.")
-        conn.close()
-    st.stop()
-
-# ==============================================================================
-# DESIGN & THEME VERWALTUNG (SEITENLEISTE)
-# ==============================================================================
-current_user = st.session_state["username"]
-
-conn = utils.get_db_connection()
-cursor = conn.cursor()
-cursor.execute("SELECT theme, accent FROM users WHERE username = ?", (current_user,))
-user_settings = cursor.fetchone()
-
-# Falls Standardeinstellungen fehlen, eintragen
-if not user_settings:
-    cursor.execute("INSERT OR REPLACE INTO users (username, theme, accent) VALUES (?, 'Dark', 'Pastell Ozean (Blau)')", (current_user,))
+    # 1. Benutzer-Tabelle
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        username TEXT PRIMARY KEY,
+        password TEXT,
+        theme TEXT DEFAULT 'Dark',
+        accent TEXT DEFAULT 'Pastell Ozean (Blau)'
+    )""")
+    
+    # 2. Webhooks-Tabelle
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS webhooks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT,
+        profile_name TEXT,
+        url TEXT,
+        plattform TEXT,
+        role_id TEXT,
+        UNIQUE(username, profile_name)
+    )""")
+    
+    # 3. JSON-Fallback-Tabelle
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS user_data (
+        username TEXT,
+        data_type TEXT,
+        json_content TEXT,
+        PRIMARY KEY (username, data_type)
+    )""")
+    
     conn.commit()
-    current_theme, current_accent = "Dark", "Pastell Ozean (Blau)"
-else:
-    current_theme = user_settings["theme"]
-    current_accent = user_settings["accent"]
+    conn.close()
 
-with st.sidebar:
-    st.header("🎨 Design anpassen")
-    selected_theme = st.radio("Modus:", ["Dark", "Light"], index=0 if current_theme == "Dark" else 1)
-    accent_options = list(utils.THEME_COLORS.keys())
-    selected_accent = st.selectbox("Akzentfarbe:", accent_options, index=accent_options.index(current_accent) if current_accent in accent_options else 0)
+# Datenbank sofort beim Import starten
+init_db()
+
+# ==============================================================================
+# NEUE DATENBANK-FUNKTIONEN (ERSATZ FÜR JSON)
+# ==============================================================================
+def load_data(file_or_type, default_factory):
+    data_type = file_or_type.replace(".json", "").replace("data_", "")
+    if "_" in data_type: 
+        parts = data_type.split("_")
+        if len(parts) > 2: data_type = parts[-1]
+
+    username = st.session_state.get("username", "global")
     
-    if st.button("💾 Speichern & Anwenden", use_container_width=True):
-        cursor.execute("UPDATE users SET theme = ?, accent = ? WHERE username = ?", (selected_theme, selected_accent, current_user))
-        conn.commit()
-        conn.close()
-        st.rerun()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT json_content FROM user_data WHERE username = ? AND data_type = ?", (username, data_type))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        try: return json.loads(row["json_content"])
+        except: return default_factory()
+    return default_factory()
 
-    st.markdown("---")
-    if st.button("🚪 Logout", use_container_width=True):
-        st.session_state["logged_in"] = False
-        st.session_state["username"] = ""
-        conn.close()
-        st.rerun()
-conn.close()
-
-# --- CSS INJECTION ---
-active_color_hex = utils.THEME_COLORS.get(current_accent, "#4A90E2")
-if current_theme == "Dark":
-    bg_color, sec_bg, text_color = "#0E1117", "#262730", "#FAFAFA"
-else:
-    bg_color, sec_bg, text_color = "#FFFFFF", "#F0F2F6", "#111111"
-
-st.markdown(f"""
-<style>
-    :root {{
-        --primary-color: {active_color_hex} !important;
-        --background-color: {bg_color} !important;
-        --secondary-background-color: {sec_bg} !important;
-        --text-color: {text_color} !important;
-    }}
-    .stApp, .main {{ background-color: {bg_color} !important; color: {text_color} !important; }}
-    section[data-testid="stSidebar"] {{ background-color: {sec_bg} !important; }}
-    p, span, h1, h2, h3, h4, h5, h6, label, li, div[data-testid="stMarkdownContainer"] {{ color: {text_color} !important; }}
-    .stButton>button[kind="primary"] {{ background-color: {active_color_hex} !important; border: 1px solid {active_color_hex} !important; color: #FFFFFF !important; }}
-</style>
-""", unsafe_allow_html=True)
+def save_data(file_or_type, data):
+    data_type = file_or_type.replace(".json", "").replace("data_", "")
+    if "_" in data_type:
+        parts = data_type.split("_")
+        if len(parts) > 2: data_type = parts[-1]
+        
+    username = st.session_state.get("username", "global")
+    json_string = json.dumps(data, ensure_ascii=False)
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT OR REPLACE INTO user_data (username, data_type, json_content)
+        VALUES (?, ?, ?)
+    """, (username, data_type, json_string))
+    conn.commit()
+    conn.close()
 
 # ==============================================================================
-# STARTSEITE
+# HILFSFUNKTIONEN & DISCORD
 # ==============================================================================
-st.title("🎬 Creator Command Center")
-st.markdown(f"**Eingeloggt als:** `{current_user}`")
-st.header(f"Willkommen in deiner Kommandozentrale!")
-st.write("Wähle nun links in der Seitenleiste aus, welches Tool du nutzen möchtest.")
-st.info("💡 **Tipp:** Wenn du eine Seite nicht siehst, klicke oben links auf den kleinen Pfeil `>_`, um die Seitenleiste auszuklappen!")
+def send_discord_webhook(url, text_content=None, embed_data=None):
+    payload = {}
+    if text_content: payload["content"] = text_content
+    if embed_data: payload["embeds"] = [embed_data]
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code in [200, 204]: 
+            return True, "🚀 Erfolgreich an Discord gesendet!"
+        return False, f"Discord-Fehler: {response.status_code} - {response.text}"
+    except Exception as e:
+        return False, f"Verbindungsfehler: {str(e)}"
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def check_login():
+    if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+        st.warning("🔒 Bitte logge dich über die Hauptseite ein!")
+        st.stop()
+    return st.session_state["username"]
+
+def get_user_filepath(username, file_type):
+    return file_type
