@@ -34,17 +34,17 @@ THEME_COLORS = {
 }
 
 # ==============================================================================
-# SUPABASE POSTGRES CONNECTION
+# DATABASE CONNECTION (Neon.tech)
 # ==============================================================================
 def get_db_connection():
     db_url = st.secrets["DATABASE_URL"]
-    # autocommit=True verhindert offene Transaktions-Leichen im Supabase-Pooler
+    # autocommit=True verhindert offene Transaktions-Leichen im Pooler
     conn = psycopg2.connect(db_url, cursor_factory=DictCursor)
     conn.autocommit = True
     return conn
 
 def init_db():
-    """Erstellt alle benötigten Tabellen in Supabase, falls sie fehlen."""
+    """Erstellt alle benötigten Tabellen in der Datenbank, falls sie fehlen."""
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -73,6 +73,16 @@ def init_db():
         data_type TEXT,
         json_content TEXT,
         PRIMARY KEY (username, data_type)
+    )""")
+    
+    # Tabelle für individuelle API-Zugänge der einzelnen Benutzer
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS api_credentials (
+        username TEXT,
+        platform TEXT,
+        channel_id TEXT,
+        api_key TEXT,
+        PRIMARY KEY (username, platform)
     )""")
     
     cursor.close()
@@ -130,34 +140,29 @@ def save_data(file_or_type, data):
 def send_discord_webhook(url, text_content=None, embed_data=None):
     payload = {}
     
-    # Prüfen, ob irgendwo im Text oder Embed ein Medien-Link (YouTube/X) steckt
+    # Prüfen, ob ein Medien-Link im Text oder Embed steckt
     full_text_check = f"{text_content or ''} "
     if embed_data:
         full_text_check += f"{embed_data.get('title', '')} {embed_data.get('description', '')}"
         
     has_media_link = any(x in full_text_check for x in ["youtube.com/", "youtu.be/", "x.com/", "twitter.com/"])
 
-    # FALL A: Es ist ein Video-/Medien-Link dabei -> Embed auflösen, damit Discord die Vorschau generiert!
+    # FALL A: Es ist ein Medien-Link dabei -> Embed auflösen, um Vorschau zu erzwingen
     if has_media_link and embed_data:
         text_pieces = []
         
-        # Pings oder Haupttext ganz nach oben (@community etc.)
         if text_content:
             text_pieces.append(text_content.strip())
             
-        # Titel fett als Überschrift formatieren
         if embed_data.get("title"):
             text_pieces.append(f"**{embed_data['title'].strip()}**")
             
-        # Beschreibung (wo auch der YouTube-Link drinsteht) anhängen
         if embed_data.get("description"):
             text_pieces.append(embed_data["description"].strip())
             
-        # Alles zu einer sauberen Textnachricht zusammenfügen
         payload["content"] = "\n\n".join(text_pieces)
-        # WICHTIG: Das 'embeds'-Feld wird bewusst weggelassen, um die Sperre aufzuheben!
 
-    # FALL B: Ganz normales Update ohne Video -> Nutze das klassische, farbige Embed-Design
+    # FALL B: Normales Update ohne Video -> Klassischer farbiger Kasten (Embed)
     else:
         if text_content: 
             payload["content"] = text_content
@@ -183,3 +188,56 @@ def check_login():
 
 def get_user_filepath(username, file_type):
     return file_type
+
+# ==============================================================================
+# API-CREDENTIALS & TRACKING-FUNKTIONEN (DYNAMISCH PRO CREATOR)
+# ==============================================================================
+def save_api_credentials(username, platform, channel_id, api_key):
+    """Speichert oder aktualisiert die API-Daten eines spezifischen Nutzers."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO api_credentials (username, platform, channel_id, api_key)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (username, platform) 
+        DO UPDATE SET channel_id = EXCLUDED.channel_id, api_key = EXCLUDED.api_key
+    """, (username, platform, channel_id, api_key))
+    cursor.close()
+    conn.close()
+
+def load_api_credentials(username, platform):
+    """Lädt die API-Daten eines spezifischen Nutzers für eine Plattform."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT channel_id, api_key FROM api_credentials WHERE username = %s AND platform = %s", (username, platform))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return row
+
+def fetch_youtube_stats(username):
+    """Holt die Live-Statistiken für den verknüpften YouTube-Kanal des angemeldeten Nutzers."""
+    creds = load_api_credentials(username, "YouTube")
+    if not creds or not creds["api_key"] or not creds["channel_id"]:
+        return None, "⚠️ Keine YouTube-API-Daten für diesen Account hinterlegt."
+        
+    api_key = creds["api_key"]
+    channel_id = creds["channel_id"]
+    
+    url = f"https://www.googleapis.com/youtube/v3/channels?part=statistics&id={channel_id}&key={api_key}"
+    
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            if "items" in data and len(data["items"]) > 0:
+                stats = data["items"][0]["statistics"]
+                return {
+                    "subscribers": int(stats.get("subscriberCount", 0)),
+                    "views": int(stats.get("viewCount", 0)),
+                    "videos": int(stats.get("videoCount", 0))
+                }, None
+            return None, "❌ Kanal-ID wurde bei YouTube nicht gefunden. Bitte ID prüfen!"
+        return None, f"YouTube-API-Fehler: {response.status_code} - {response.text}"
+    except Exception as e:
+        return None, f"Verbindungsfehler zur YouTube-API: {str(e)}"
