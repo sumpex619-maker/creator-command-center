@@ -16,20 +16,20 @@ if not st.session_state["logged_in"]:
     with col_login:
         tab_login, tab_register = st.tabs(["🔑 Anmelden", "📝 Registrieren"])
         
-        # Verbindung zur DB für Login/Registrierung
         conn = utils.get_db_connection()
+        cursor = conn.cursor()
         
         with tab_login:
             user_login = st.text_input("Benutzername", key="login_user")
             pwd_login = st.text_input("Passwort", type="password", key="login_pwd")
             if st.button("Einloggen", type="primary", use_container_width=True):
-                cursor = conn.cursor()
-                cursor.execute("SELECT password FROM users WHERE username = ?", (user_login,))
+                cursor.execute("SELECT password FROM users WHERE username = %s", (user_login,))
                 row = cursor.fetchone()
                 
                 if row and row["password"] == utils.hash_password(pwd_login):
                     st.session_state["logged_in"] = True
                     st.session_state["username"] = user_login
+                    cursor.close()
                     conn.close()
                     st.rerun()
                 else:
@@ -47,30 +47,33 @@ if not st.session_state["logged_in"]:
                 elif len(pwd_reg) < 4:
                     st.error("⚠️ Das Passwort muss mindestens 4 Zeichen lang sein!")
                 else:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT username FROM users WHERE username = ?", (user_reg,))
+                    cursor.execute("SELECT username FROM users WHERE username = %s", (user_reg,))
                     if cursor.fetchone():
                         st.error("⚠️ Dieser Benutzername ist bereits vergeben!")
                     else:
-                        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (user_reg, utils.hash_password(pwd_reg)))
+                        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (user_reg, utils.hash_password(pwd_reg)))
                         conn.commit()
                         st.success("✅ Konto erfolgreich erstellt! Du kannst dich jetzt einloggen.")
+        cursor.close()
         conn.close()
     st.stop()
 
 # ==============================================================================
-# DESIGN & THEME VERWALTUNG (SEITENLEISTE)
+# DESIGN & THEME VERWALTUNG
 # ==============================================================================
 current_user = st.session_state["username"]
 
 conn = utils.get_db_connection()
 cursor = conn.cursor()
-cursor.execute("SELECT theme, accent FROM users WHERE username = ?", (current_user,))
+cursor.execute("SELECT theme, accent FROM users WHERE username = %s", (current_user,))
 user_settings = cursor.fetchone()
 
-# Falls Standardeinstellungen fehlen, eintragen
 if not user_settings:
-    cursor.execute("INSERT OR REPLACE INTO users (username, theme, accent) VALUES (?, 'Dark', 'Pastell Ozean (Blau)')", (current_user,))
+    cursor.execute("""
+        INSERT INTO users (username, theme, accent) 
+        VALUES (%s, 'Dark', 'Pastell Ozean (Blau)')
+        ON CONFLICT (username) DO UPDATE SET theme = 'Dark', accent = 'Pastell Ozean (Blau)'
+    """, (current_user,))
     conn.commit()
     current_theme, current_accent = "Dark", "Pastell Ozean (Blau)"
 else:
@@ -84,8 +87,9 @@ with st.sidebar:
     selected_accent = st.selectbox("Akzentfarbe:", accent_options, index=accent_options.index(current_accent) if current_accent in accent_options else 0)
     
     if st.button("💾 Speichern & Anwenden", use_container_width=True):
-        cursor.execute("UPDATE users SET theme = ?, accent = ? WHERE username = ?", (selected_theme, selected_accent, current_user))
+        cursor.execute("UPDATE users SET theme = %s, accent = %s WHERE username = %s", (selected_theme, selected_accent, current_user))
         conn.commit()
+        cursor.close()
         conn.close()
         st.rerun()
 
@@ -93,8 +97,10 @@ with st.sidebar:
     if st.button("🚪 Logout", use_container_width=True):
         st.session_state["logged_in"] = False
         st.session_state["username"] = ""
+        cursor.close()
         conn.close()
         st.rerun()
+cursor.close()
 conn.close()
 
 # --- CSS INJECTION ---
@@ -125,7 +131,6 @@ st.markdown(f"""
 st.title("🎬 Creator Command Center")
 st.markdown(f"**Eingeloggt als:** `{current_user}`")
 
-# Hier fügen wir die Anleitung ein
 with st.expander("📖 Kurzanleitung: So nutzt du das Tool", expanded=True):
     st.markdown("""
     Willkommen in deiner Kommandozentrale! Hier sind die ersten Schritte:
