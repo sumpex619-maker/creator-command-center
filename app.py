@@ -120,10 +120,22 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# STARTSEITE
+# STARTSEITE & ANLEITUNG
 # ==============================================================================
 st.title("🎬 Creator Command Center")
 st.markdown(f"**Eingeloggt als:** `{current_user}`")
+
+# Hier fügen wir die Anleitung ein
+with st.expander("📖 Kurzanleitung: So nutzt du das Tool", expanded=True):
+    st.markdown("""
+    Willkommen in deiner Kommandozentrale! Hier sind die ersten Schritte:
+    1. **Discord-Webhooks:** Gehe in der Seitenleiste auf `📢_Discord_Webhooks` und lege dort dein erstes Webhook-Profil an (URL von Discord kopieren).
+    2. **Sendeplan:** Unter `📅_Sendeplan` kannst du deine Woche planen und deine Community automatisch per Discord informieren.
+    3. **Stats-Tracking:** Nutze `📊_Stats`, um deine Performance zu erfassen und direkt in Grafiken auszuwerten.
+    4. **Ideen:** Unter `📝_Ideen_und_ToDos` verlierst du nie wieder einen Geistesblitz.
+    
+    *Tipp: Du kannst links über die Seitenleiste jederzeit zwischen den Tools wechseln.*
+    """)
+
 st.header(f"Willkommen in deiner Kommandozentrale!")
 st.write("Wähle nun links in der Seitenleiste aus, welches Tool du nutzen möchtest.")
-st.info("💡 **Tipp:** Wenn du eine Seite nicht siehst, klicke oben links auf den kleinen Pfeil `>_`, um die Seitenleiste auszuklappen!")
