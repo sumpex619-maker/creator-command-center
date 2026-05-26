@@ -189,6 +189,19 @@ def check_login():
 def get_user_filepath(username, file_type):
     return file_type
 
+def load_user_settings(username):
+    """Lädt die Design-Einstellungen (Theme und Akzent) eines Nutzers."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT theme, accent FROM users WHERE username = %s", (username,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if row:
+        return row
+    # Falls der Nutzer neu ist und noch keine Einstellungen hat, Standardwerte zurückgeben:
+    return {"theme": "Dark", "accent": "Pastell Ozean (Blau)"}
+
 # ==============================================================================
 # API-CREDENTIALS & TRACKING-FUNKTIONEN (DYNAMISCH PRO CREATOR)
 # ==============================================================================
