@@ -38,7 +38,9 @@ THEME_COLORS = {
 # ==============================================================================
 def get_db_connection():
     db_url = st.secrets["DATABASE_URL"]
+    # autocommit=True verhindert offene Transaktions-Leichen im Supabase-Pooler
     conn = psycopg2.connect(db_url, cursor_factory=DictCursor)
+    conn.autocommit = True
     return conn
 
 def init_db():
@@ -73,7 +75,6 @@ def init_db():
         PRIMARY KEY (username, data_type)
     )""")
     
-    conn.commit()
     cursor.close()
     conn.close()
 
@@ -120,7 +121,6 @@ def save_data(file_or_type, data):
         ON CONFLICT (username, data_type) 
         DO UPDATE SET json_content = EXCLUDED.json_content
     """, (username, data_type, json_string))
-    conn.commit()
     cursor.close()
     conn.close()
 
