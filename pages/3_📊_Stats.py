@@ -25,9 +25,23 @@ tab_eingabe, tab_auswertung, tab_bewerben = st.tabs([
 with tab_eingabe:
     st.header("Social Media Stats erfassen")
     
-    # --- NEU: Der einklappbare API-Bereich ganz oben ---
+    # --- API-Bereich mit integrierter Anleitung ---
     with st.expander("⚙️ API-Zugangsdaten & Automatischer YouTube-Abruf", expanded=False):
-        st.markdown("Hinterlege hier einmalig deine YouTube-API-Daten, um Live-Zahlen mit einem Klick abzurufen.")
+        st.markdown("""
+        ### 🛠️ Anleitung: Woher bekomme ich die API-Daten?
+        
+        **1. YouTube Channel ID (Kanal-ID):**
+        * Gehe auf YouTube zu deinen **Erweiterten Kontoeinstellungen** unter [youtube.com/account_advanced](https://www.youtube.com/account_advanced).
+        * Kopiere den Wert bei **Kanal-ID** (die ID beginnt fast immer mit **UC...**).
+        
+        **2. YouTube API Key (API-Schlüssel):**
+        * Öffne die [Google Cloud Console](https://console.cloud.google.com/).
+        * Erstelle oben links ein neues, kostenloses Projekt (z. B. *Creator Center*).
+        * Suche in der oberen Suchleiste nach **"YouTube Data API v3"** und klicke auf **Aktivieren**.
+        * Wechsel im linken Menü zu **Anmeldedaten** (Credentials) -> Klicke auf **Anmeldedaten erstellen** -> **API-Schlüssel**.
+        * Kopiere den erzeugten Schlüssel und füge ihn unten ein.
+        """)
+        st.markdown("---")
         
         yt_creds = utils.load_api_credentials(current_user, "YouTube")
         yt_channel_id = yt_creds["channel_id"] if yt_creds else ""
@@ -38,7 +52,7 @@ with tab_eingabe:
             new_yt_channel = col_api1.text_input("YouTube Channel ID", value=yt_channel_id)
             new_yt_key = col_api2.text_input("YouTube API Key", type="password", value=yt_api_key)
             
-            if st.form_submit_button("💾 API-Daten speichern"):
+            if st.form_submit_button("💾 API-Daten保存 (Speichern)"):
                 utils.save_api_credentials(current_user, "YouTube", new_yt_channel, new_yt_key)
                 st.success("✅ YouTube API-Daten erfolgreich gespeichert!")
                 st.rerun()
@@ -58,7 +72,7 @@ with tab_eingabe:
                         "views": stats["views"],
                         "likes": 0,
                         "kommentare": 0,
-                        "saves": stats["subscribers"], # Wir speichern Abonnenten in der Saves-Spalte
+                        "saves": stats["subscribers"], # Speichert Abonnenten im Saves-Feld ab
                         "engagement_rate_pct": 0.0
                     }
                     current_stats = utils.load_data("stats", list)
@@ -67,7 +81,7 @@ with tab_eingabe:
                     st.success(f"Erfolgreich abgerufen! Abonnenten: {stats['subscribers']} | Views: {stats['views']}")
                     st.rerun()
 
-    # --- DEIN ORIGINALES FORMULAR FÜR DIE MANUELLE EINGABE ---
+    # --- Manuelle Eingabe ---
     st.markdown("---")
     plattform = st.selectbox("Plattform wählen", ["Twitch", "YouTube", "Instagram", "TikTok", "Twitter", "Kick"])
     titel = st.text_input("Titel / Thema des Contents", placeholder="z.B. Clip vom Let's Play Part 3")
@@ -81,7 +95,6 @@ with tab_eingabe:
         kommentare = st.number_input("Kommentare", min_value=0, step=1, value=0)
         saves = st.number_input("Saves / Shares", min_value=0, step=1, value=0)
         
-    # Engagement-Rate berechnen
     engagement = 0.0
     if views > 0:
         engagement = ((likes + kommentare + saves) / views) * 100

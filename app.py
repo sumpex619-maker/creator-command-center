@@ -29,118 +29,80 @@ if not st.session_state["logged_in"]:
                 if row and row["password"] == utils.hash_password(pwd_login):
                     st.session_state["logged_in"] = True
                     st.session_state["username"] = user_login
-                    cursor.close()
-                    conn.close()
                     st.rerun()
                 else:
-                    st.error("❌ Falscher Benutzername oder Passwort!")
+                    st.error("❌ Benutzername oder Passwort falsch.")
                     
         with tab_register:
-            user_reg = st.text_input("Neuer Benutzername", key="reg_user")
-            pwd_reg = st.text_input("Neues Passwort", type="password", key="reg_pwd")
-            pwd_reg2 = st.text_input("Passwort bestätigen", type="password", key="reg_pwd2")
-            if st.button("Konto erstellen", use_container_width=True):
-                if not user_reg or not pwd_reg:
-                    st.error("⚠️ Bitte alle Felder ausfüllen!")
-                elif pwd_reg != pwd_reg2:
-                    st.error("⚠️ Die Passwörter stimmen nicht überein!")
-                elif len(pwd_reg) < 4:
-                    st.error("⚠️ Das Passwort muss mindestens 4 Zeichen lang sein!")
-                else:
+            user_reg = st.text_input("Wunsch-Benutzername", key="reg_user")
+            pwd_reg = st.text_input("Passwort wählen", type="password", key="reg_pwd")
+            if st.button("Account erstellen", use_container_width=True):
+                if user_reg and pwd_reg:
                     cursor.execute("SELECT username FROM users WHERE username = %s", (user_reg,))
                     if cursor.fetchone():
-                        st.error("⚠️ Dieser Benutzername ist bereits vergeben!")
+                        st.error("❌ Dieser Benutzername ist leider schon vergeben.")
                     else:
-                        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (user_reg, utils.hash_password(pwd_reg)))
+                        hashed_pwd = utils.hash_password(pwd_reg)
+                        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (user_reg, hashed_pwd))
                         conn.commit()
-                        st.success("✅ Konto erfolgreich erstellt! Du kannst dich jetzt einloggen.")
+                        st.success("✅ Account erfolgreich erstellt! Du kannst dich jetzt einloggen.")
+                else:
+                    st.warning("⚠️ Bitte fülle alle Felder aus.")
+                    
         cursor.close()
         conn.close()
-    st.stop()
-
-# ==============================================================================
-# DESIGN & THEME VERWALTUNG
-# ==============================================================================
-current_user = st.session_state["username"]
-
-conn = utils.get_db_connection()
-cursor = conn.cursor()
-cursor.execute("SELECT theme, accent FROM users WHERE username = %s", (current_user,))
-user_settings = cursor.fetchone()
-
-if not user_settings:
-    cursor.execute("""
-        INSERT INTO users (username, theme, accent) 
-        VALUES (%s, 'Dark', 'Pastell Ozean (Blau)')
-        ON CONFLICT (username) DO UPDATE SET theme = 'Dark', accent = 'Pastell Ozean (Blau)'
-    """, (current_user,))
-    conn.commit()
-    current_theme, current_accent = "Dark", "Pastell Ozean (Blau)"
 else:
-    current_theme = user_settings["theme"]
-    current_accent = user_settings["accent"]
-
-with st.sidebar:
-    st.header("🎨 Design anpassen")
-    selected_theme = st.radio("Modus:", ["Dark", "Light"], index=0 if current_theme == "Dark" else 1)
-    accent_options = list(utils.THEME_COLORS.keys())
-    selected_accent = st.selectbox("Akzentfarbe:", accent_options, index=accent_options.index(current_accent) if current_accent in accent_options else 0)
+    current_user = st.session_state["username"]
     
-    if st.button("💾 Speichern & Anwenden", use_container_width=True):
-        cursor.execute("UPDATE users SET theme = %s, accent = %s WHERE username = %s", (selected_theme, selected_accent, current_user))
-        conn.commit()
-        cursor.close()
-        conn.close()
-        st.rerun()
-
-    st.markdown("---")
-    if st.button("🚪 Logout", use_container_width=True):
-        st.session_state["logged_in"] = False
-        st.session_state["username"] = ""
-        cursor.close()
-        conn.close()
-        st.rerun()
-cursor.close()
-conn.close()
-
-# --- CSS INJECTION ---
-active_color_hex = utils.THEME_COLORS.get(current_accent, "#4A90E2")
-if current_theme == "Dark":
-    bg_color, sec_bg, text_color = "#0E1117", "#262730", "#FAFAFA"
-else:
-    bg_color, sec_bg, text_color = "#FFFFFF", "#F0F2F6", "#111111"
-
-st.markdown(f"""
-<style>
-    :root {{
-        --primary-color: {active_color_hex} !important;
-        --background-color: {bg_color} !important;
-        --secondary-background-color: {sec_bg} !important;
-        --text-color: {text_color} !important;
-    }}
-    .stApp, .main {{ background-color: {bg_color} !important; color: {text_color} !important; }}
-    section[data-testid="stSidebar"] {{ background-color: {sec_bg} !important; }}
-    p, span, h1, h2, h3, h4, h5, h6, label, li, div[data-testid="stMarkdownContainer"] {{ color: {text_color} !important; }}
-    .stButton>button[kind="primary"] {{ background-color: {active_color_hex} !important; border: 1px solid {active_color_hex} !important; color: #FFFFFF !important; }}
-</style>
-""", unsafe_allow_html=True)
-
-# ==============================================================================
-# STARTSEITE & ANLEITUNG
-# ==============================================================================
-st.title("🎬 Creator Command Center")
-st.markdown(f"**Eingeloggt als:** `{current_user}`")
-
-with st.expander("📖 Kurzanleitung: So nutzt du das Tool", expanded=True):
-    st.markdown("""
-    Willkommen in deiner Kommandozentrale! Hier sind die ersten Schritte:
-    1. **Discord-Webhooks:** Gehe in der Seitenleiste auf `📢_Discord_Webhooks` und lege dort dein erstes Webhook-Profil an (URL von Discord kopieren).
-    2. **Sendeplan:** Unter `📅_Sendeplan` kannst du deine Woche planen und deine Community automatisch per Discord informieren.
-    3. **Stats-Tracking:** Nutze `📊_Stats`, um deine Performance zu erfassen und direkt in Grafiken auszuwerten.
-    4. **Ideen:** Unter `📝_Ideen_und_ToDos` verlierst du nie wieder einen Geistesblitz.
+    # --------------------------------------------------------------------------
+    # DESIGN & CUSTOM STYLING (Theme-Engine)
+    # --------------------------------------------------------------------------
+    user_settings = utils.load_user_settings(current_user)
+    theme_choice = user_settings.get("theme", "Dark")
+    accent_choice = user_settings.get("accent", "Karibik Türkis")
     
-    *Tipp: Du kannst links über die Seitenleiste jederzeit zwischen den Tools wechseln.*
-    """)
+    active_color_hex = utils.THEME_COLORS.get(accent_choice, "#46A5B8")
+    
+    if theme_choice == "Dark":
+        bg_color = "#121212"
+        sidebar_bg = "#1E1E1E"
+        text_color = "#FFFFFF"
+    else:
+        bg_color = "#FFFFFF"
+        sidebar_bg = "#F4F6F7"
+        text_color = "#111111"
+        
+    st.markdown(f"""
+    <style>
+        .stApp {{ background-color: {bg_color} !important; color: {text_color} !important; }}
+        [data-testid="stSidebar"] {{ background-color: {sidebar_bg} !important; }}
+        h1, h2, h3, h4, h5, h6, label, li, div[data-testid="stMarkdownContainer"] {{ color: {text_color} !important; }}
+        .stButton>button[kind="primary"] {{ background-color: {active_color_hex} !important; border: 1px solid {active_color_hex} !important; color: #FFFFFF !important; }}
+    </style>
+    """, unsafe_allow_html=True)
 
-st.header(f"Willkommen in deiner Kommandozentrale!")
-st.write("Wähle nun links in der Seitenleiste aus, welches Tool du nutzen möchtest.")
+    # ==============================================================================
+    # STARTSEITE & ANLEITUNG
+    # ==============================================================================
+    st.title("🎬 Creator Command Center")
+    st.markdown(f"**Eingeloggt als:** `{current_user}`")
+    
+    # Hier ist die erweiterte Kurzanleitung mit Beschreibungen für die API-Daten
+    with st.expander("📖 Kurzanleitung: So nutzt du das Tool", expanded=True):
+        st.markdown(f"""
+        Willkommen in deiner Kommandozentrale! Hier sind die ersten Schritte:
+        
+        1. **Discord-Webhooks:** Gehe in der Seitenleiste auf `📢_Discord_Webhooks` und lege dort dein erstes Webhook-Profil an (URL aus den Discord-Kanaleinstellungen kopieren).
+        
+        2. **Sendeplan:** Unter `📅_Sendeplan` kannst du deine Woche strukturieren und deine Community per Mausklick automatisch über Discord informieren.
+        
+        3. **Stats-Tracking:** Nutze das Tool `📊_Stats`, um deine Social-Media-Zahlen manuell zu loggen oder vollautomatisch per YouTube-Schnittstelle abzurufen.
+           
+           **💡 Anleitung für den automatischen YouTube-Abruf:**
+           * **YouTube Channel ID (Kanal-ID):** Logge dich bei YouTube ein und rufe deine erweiterten Kontoeinstellungen unter [youtube.com/account_advanced](https://www.youtube.com/account_advanced) auf. Kopiere dort die ID, die mit **"UC..."** beginnt.
+           * **YouTube API Key (API-Schlüssel):** Melde dich in der kostenlosen [Google Cloud Console](https://console.cloud.google.com/) an, erstelle ein neues Projekt, suche nach **"YouTube Data API v3"** und aktiviere diese. Unter *Anmeldedaten -> Anmeldedaten erstellen -> API-Schlüssel* erhältst du deinen persönlichen Key.
+        
+        4. **Ideen:** Unter `📝_Ideen_und_ToDos` verlierst du nie wieder einen kreativen Geistesblitz oder ein wichtiges ToDo.
+        
+        *Tipp: Du kannst links über die Seitenleiste jederzeit flexibel zwischen allen Funktionen wechseln.*
+        """)
