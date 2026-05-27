@@ -1,156 +1,114 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
-from datetime import datetime
 import utils
 
 # ==============================================================================
-# SEITEN-KONFIGURATION & LOGIN-CHECK
+# GLOBALES 2026 DESIGN SYSTEM (Midnight Navy)
 # ==============================================================================
+PRIMARY_BLUE = "#38BDF8"
+BG_DEEP_NAVY = "#0F172A"
+SIDEBAR_NAVY = "#1E293B"
+TEXT_SLATE = "#F8FAFC"
+
+st.markdown(f"""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Inter:wght@400;600&display=swap');
+    html, body, [class*="css"], .stMarkdown {{ font-family: 'Inter', sans-serif !important; color: {TEXT_SLATE} !important; }}
+    .stApp {{ background-color: {BG_DEEP_NAVY} !important; }}
+    h1, h2, h3 {{ font-family: 'Outfit', sans-serif !important; font-weight: 700 !important; color: #FFFFFF !important; }}
+    
+    /* Custom Bento-Kacheln für die Metriken */
+    div[data-testid="stExpander"], .stAlert, .metric-box {{ 
+        background-color: rgba(30, 41, 59, 0.4) !important; 
+        border-radius: 16px !important; 
+        border: 1px solid rgba(255, 255, 255, 0.08) !important; 
+        padding: 20px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    }}
+    
+    .stButton>button {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; color: white !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; font-family: 'Outfit', sans-serif !important; }}
+    .stButton>button:hover {{ border-color: {PRIMARY_BLUE} !important; box-shadow: 0 0 15px rgba(56, 189, 248, 0.3) !important; }}
+    .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important; border: none !important; }}
+    .stTextInput>div>div, .stSelectbox>div>div {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: {TEXT_SLATE} !important; }}
+</style>
+""", unsafe_allow_html=True)
+
 current_user = utils.check_login()
 
-st.title("📊 Stats & Community Health")
-st.markdown("Deine Schaltzentrale für Reichweite und Community-Wachstum.")
+st.title("📊 Performance & Analytics Hub")
+st.markdown("Behalte deine Reichweite im Blick und verwalte deine API-Schnittstellen.")
+st.markdown("---")
 
-tab_eingabe, tab_auswertung = st.tabs([
-    "📝 Eingabe & Live-Abruf", 
-    "📈 Visuelle Auswertung"
-])
+# Zwei-Spalten Bento-Layout (Links die Auswertung, rechts die Einstellungen)
+col_stats, col_api = st.columns([1.6, 1])
 
-# ------------------------------------------------------------------------------
-# TAB 1: EINGABE & LIVE-ABRUF
-# ------------------------------------------------------------------------------
-with tab_eingabe:
-    with st.expander("⚙️ API-Zugangsdaten & Automatischer YouTube-Abruf", expanded=False):
-        yt_creds = utils.load_api_credentials(current_user, "YouTube")
-        yt_channel_id = yt_creds["channel_id"] if yt_creds else ""
-        yt_api_key = yt_creds["api_key"] if yt_creds else ""
+with col_stats:
+    st.markdown("### 📈 Live-Kanaldaten")
+    
+    # YouTube-Statistiken über die utils-Schnittstelle laden
+    try:
+        stats, error = utils.fetch_youtube_stats(current_user)
+    except Exception:
+        stats, error = None, "Fehler beim Laden des Statistik-Moduls."
+
+    if stats:
+        st.markdown("#### 🎥 YouTube Realtime-Metriken")
         
-        col_api1, col_api2 = st.columns(2)
-        with col_api1:
-            new_yt_channel = st.text_input("YouTube Channel ID", value=yt_channel_id, key="yt_ch_id")
-        with col_api2:
-            new_yt_key = st.text_input("YouTube API Key", type="password", value=yt_api_key, key="yt_key")
-            
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("💾 API-Daten speichern", use_container_width=True):
-                utils.save_api_credentials(current_user, "YouTube", new_yt_channel, new_yt_key)
-                st.success("✅ API-Zugangsdaten gespeichert!")
-                st.rerun()
-                
-        with col_btn2:
-            if st.button("🚀 YouTube Live-Zahlen abrufen", type="primary", use_container_width=True):
-                yt_stats, err = utils.fetch_youtube_stats(current_user)
-                if err:
-                    st.error(err)
-                elif yt_stats:
-                    current_stats = utils.load_data("stats", list)
-                    auto_entry = {
-                        "datum": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "plattform": "YouTube",
-                        "titel": f"API-Abruf (Abos: {yt_stats['subscribers']:,})",
-                        "views": yt_stats["views"],
-                        "chat_aktivitaet": 0,
-                        "neue_discord_member": 0,
-                        "shares": 0
-                    }
-                    current_stats.append(auto_entry)
-                    utils.save_data("stats", current_stats)
-                    st.success(f"📈 Erfolgreich abgerufen! Views insgesamt: {yt_stats['views']:,} | Abos: {yt_stats['subscribers']:,}")
-                    st.rerun()
-
-    st.markdown("---")
-    st.subheader("✍️ Daten manuell erfassen")
-
-    # Side-by-Side Design beibehalten
-    with st.form("manual_stats_form", clear_on_submit=True):
-        col_basis, col_health = st.columns(2)
-        
-        with col_basis:
-            st.markdown("### 📈 Performance")
-            plattform = st.selectbox("Plattform", ["Twitch", "YouTube", "Instagram", "TikTok", "Kick", "X"])
-            titel = st.text_input("Thema / Titel des Beitrags", placeholder="z.B. Rennplan Stream")
-            views = st.number_input("Views / Aufrufe", min_value=0, step=1)
-            
-        with col_health:
-            st.markdown("### 🫂 Community Health")
-            chat_aktivitaet = st.number_input("Aktive Chatter", min_value=0, step=1)
-            neue_discord = st.number_input("Neue Discord-Member", min_value=0, step=1)
-            shares_mentions = st.number_input("Shares / Erwähnungen", min_value=0, step=1)
+        # Side-by-Side Kacheln für die einzelnen Werte
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            st.markdown(f"""
+            <div class="metric-box">
+                <p style="color: #94A3B8; margin: 0; font-size: 14px;">👥 Abonnenten</p>
+                <p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 26px; font-weight: 700;">{stats.get('subscribers', 0):,}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with m2:
+            st.markdown(f"""
+            <div class="metric-box">
+                <p style="color: #94A3B8; margin: 0; font-size: 14px;">👁️ Gesamt-Aufrufe</p>
+                <p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 26px; font-weight: 700;">{stats.get('views', 0):,}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with m3:
+            st.markdown(f"""
+            <div class="metric-box">
+                <p style="color: #94A3B8; margin: 0; font-size: 14px;">🎬 Videos online</p>
+                <p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 26px; font-weight: 700;">{stats.get('videos', 0):,}</p>
+            </div>
+            """, unsafe_allow_html=True)
             
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.form_submit_button("💾 Statistik sichern", type="primary", use_container_width=True):
-            new_entry = {
-                "datum": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "plattform": plattform,
-                "titel": titel,
-                "views": views,
-                "chat_aktivitaet": chat_aktivitaet,
-                "neue_discord_member": neue_discord,
-                "shares": shares_mentions
-            }
-            current_stats = utils.load_data("stats", list)
-            current_stats.append(new_entry)
-            utils.save_data("stats", current_stats)
-            st.success("✅ Daten erfolgreich gespeichert!")
-            st.rerun()
-
-# ------------------------------------------------------------------------------
-# TAB 2: VISUELLE AUSWERTUNG (MIt 2026 Midnight-Theme für die Charts)
-# ------------------------------------------------------------------------------
-with tab_auswertung:
-    st.subheader("📈 Auswertungen & Trends")
-    raw_stats = utils.load_data("stats", list)
-    
-    if not raw_stats:
-        st.info("Noch keine Daten vorhanden.")
+        st.success("🎯 Live-Daten erfolgreich synchronisiert!")
     else:
-        df = pd.DataFrame(raw_stats)
-        df['datum'] = pd.to_datetime(df['datum'])
-        df = df.sort_values('datum')
+        # Schicke Info-Box, falls noch keine API eingerichtet ist
+        st.info(error if error else "ℹ️ Bisher sind keine Live-Daten verfügbar. Verknüpfe rechts deinen Kanal, um die Automatisierung zu starten.")
+
+with col_api:
+    st.markdown("### 🔑 API-Schnittstellen")
+    
+    with st.form("api_credentials_form", clear_on_submit=False):
+        plattform = st.selectbox("Plattform wählen", ["YouTube"])
+        channel_id = st.text_input("Kanal-ID (Channel ID)", placeholder="UC...", help="Deine eindeutige YouTube-Kanal-ID")
+        api_key = st.text_input("API-Schlüssel (API Key)", type="password", placeholder="AIzaSy...", help="Dein Google Cloud API-Key")
         
-        with st.expander("📋 Alle Rohdaten als Tabelle"):
-            st.dataframe(df, use_container_width=True, hide_index=True)
-            
-        st.markdown("---")
-        
-        # Neues, dunkles Design für Plotly
-        CHART_BG = "rgba(0,0,0,0)"
-        FONT_COLOR = "#F8FAFC"
-        
-        st.markdown("#### 👀 Reichweiten-Entwicklung")
-        fig_views = px.line(df, x="datum", y="views", color="plattform", markers=True)
-        # 2026 Theme anwenden
-        fig_views.update_layout(
-            plot_bgcolor=CHART_BG, 
-            paper_bgcolor=CHART_BG, 
-            font=dict(color=FONT_COLOR, family="Inter"),
-            xaxis=dict(showgrid=False),
-            yaxis=dict(gridcolor="rgba(255,255,255,0.1)")
-        )
-        st.plotly_chart(fig_views, use_container_width=True)
-        
-        st.markdown("---")
-        
-        st.markdown("#### 🫂 Community Health Trend")
-        for col in ["chat_aktivitaet", "neue_discord_member", "shares"]:
-            if col not in df.columns:
-                df[col] = 0
-                
-        fig_health = px.bar(
-            df, 
-            x="datum", 
-            y=["chat_aktivitaet", "neue_discord_member", "shares"],
-            barmode="group",
-            color_discrete_sequence=["#38BDF8", "#818CF8", "#F472B6"] # Passende Blau- und Pinktöne
-        )
-        fig_health.update_layout(
-            plot_bgcolor=CHART_BG, 
-            paper_bgcolor=CHART_BG, 
-            font=dict(color=FONT_COLOR, family="Inter"),
-            xaxis=dict(showgrid=False),
-            yaxis=dict(gridcolor="rgba(255,255,255,0.1)"),
-            legend_title_text="Metriken"
-        )
-        st.plotly_chart(fig_health, use_container_width=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.form_submit_button("🔗 API verbinden", type="primary", use_container_width=True):
+            if channel_id and api_key:
+                try:
+                    conn = utils.get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        INSERT INTO api_credentials (username, platform, channel_id, api_key)
+                        VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (username, platform) 
+                        DO UPDATE SET channel_id = EXCLUDED.channel_id, api_key = EXCLUDED.api_key
+                    """, (current_user, plattform, channel_id, api_key))
+                    cursor.close()
+                    conn.close()
+                    st.success(f"✅ API-Daten für {plattform} erfolgreich gesichert!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Datenbankfehler: {e}")
+            else:
+                st.error("⚠️ Bitte fülle alle Felder aus!")
+
