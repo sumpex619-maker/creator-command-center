@@ -2,17 +2,17 @@ import streamlit as st
 import utils
 
 # ==============================================================================
-# 1. PAGE CONFIGURATION (Muss zwingend an allererster Stelle stehen!)
+# SEITEN-KONFIGURATION
 # ==============================================================================
 st.set_page_config(
-    page_title="Creator Command Center", 
-    page_icon="🎬", 
+    page_title="Creator Command Center 2026",
+    page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # ==============================================================================
-# 2. GLOBALES 2026 DESIGN SYSTEM (Midnight Navy & Sky Blue)
+# GLOBALES 2026 DESIGN SYSTEM (Midnight Navy)
 # ==============================================================================
 PRIMARY_BLUE = "#38BDF8"
 BG_DEEP_NAVY = "#0F172A"
@@ -21,204 +21,172 @@ TEXT_SLATE = "#F8FAFC"
 
 st.markdown(f"""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Inter:wght@400;600&display=swap');
-
-    /* Globales Text- & Hintergrund-Styling */
-    html, body, [class*="css"], .stMarkdown {{
-        font-family: 'Inter', sans-serif !important;
-        color: {TEXT_SLATE} !important;
-    }}
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght=300;400;700&family=Inter:wght=400;600&display=swap');
+    html, body, [class*="css"], .stMarkdown {{ font-family: 'Inter', sans-serif !important; color: {TEXT_SLATE} !important; }}
     .stApp {{ background-color: {BG_DEEP_NAVY} !important; }}
+    h1, h2, h3 {{ font-family: 'Outfit', sans-serif !important; font-weight: 700 !important; color: #FFFFFF !important; }}
     
-    /* Überschriften */
-    h1, h2, h3 {{ 
-        font-family: 'Outfit', sans-serif !important; 
-        font-weight: 700 !important; 
-        color: #FFFFFF !important; 
-        letter-spacing: -0.5px !important;
-    }}
-    
-    /* Linke Navigations-Sidebar */
-    [data-testid="stSidebar"] {{ 
-        background-color: {SIDEBAR_NAVY} !important; 
-        border-right: 1px solid rgba(255, 255, 255, 0.05); 
-    }}
-
-    /* Bento-Card-Look für Boxen & Expander */
-    div[data-testid="stExpander"], .stAlert, div[style*="border"] {{
-        background-color: rgba(30, 41, 59, 0.4) !important;
-        border-radius: 16px !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    /* Bento Box Design */
+    .bento-card {{ 
+        background-color: rgba(30, 41, 59, 0.4) !important; 
+        border-radius: 16px !important; 
+        border: 1px solid rgba(255, 255, 255, 0.08) !important; 
+        padding: 24px !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-    }}
-
-    /* Interaktive Buttons */
-    .stButton>button {{
-        border-radius: 10px !important;
-        background-color: {SIDEBAR_NAVY} !important;
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        transition: all 0.3s ease;
-        font-family: 'Outfit', sans-serif !important;
-        padding: 10px 20px !important;
-    }}
-    .stButton>button:hover {{ 
-        border-color: {PRIMARY_BLUE} !important; 
-        box-shadow: 0 0 15px rgba(56, 189, 248, 0.3) !important; 
-        transform: translateY(-1px);
-    }}
-    .stButton>button[kind="primary"] {{ 
-        background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important; 
-        border: none !important; 
-    }}
-
-    /* Formularfelder & Inputs */
-    .stTextInput>div>div, .stSelectbox>div>div, .stTextArea>div>div, .stNumberInput>div>div {{ 
-        border-radius: 10px !important; 
-        background-color: {SIDEBAR_NAVY} !important; 
-        border: 1px solid rgba(255, 255, 255, 0.1) !important; 
-        color: {TEXT_SLATE} !important;
+        margin-bottom: 16px;
     }}
     
-    /* Tabs (Registerkarten) */
+    .stButton>button {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; color: white !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; font-family: 'Outfit', sans-serif !important; }}
+    .stButton>button:hover {{ border-color: {PRIMARY_BLUE} !important; box-shadow: 0 0 15px rgba(56, 189, 248, 0.3) !important; }}
+    .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important; border: none !important; }}
+    .stTextInput>div>div {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: {TEXT_SLATE} !important; }}
+    
+    /* Tabs für Login/Registrierung */
     .stTabs [data-baseweb="tab-list"] {{ gap: 10px !important; }}
-    .stTabs [data-baseweb="tab"] {{ 
-        background-color: rgba(30, 41, 59, 0.5) !important; 
-        border-radius: 8px 8px 0 0 !important; 
-        padding: 10px 20px !important; 
-        color: #94A3B8 !important;
-    }}
-    .stTabs [aria-selected="true"] {{ 
-        background-color: {PRIMARY_BLUE} !important; 
-        color: {BG_DEEP_NAVY} !important; 
-        font-weight: 600 !important;
-    }}
+    .stTabs [data-baseweb="tab"] {{ background-color: rgba(30, 41, 59, 0.5) !important; border-radius: 8px 8px 0 0 !important; padding: 10px 20px !important; color: #94A3B8 !important; }}
+    .stTabs [aria-selected="true"] {{ background-color: {PRIMARY_BLUE} !important; color: {BG_DEEP_NAVY} !important; font-weight: 600 !important; }}
 </style>
 """, unsafe_allow_html=True)
 
-# ==============================================================================
-# 3. DYNAMISCHE SESSION-STATE LOGIK
-# ==============================================================================
-if "logged_in" not in st.session_state: 
+# Session State initialisieren
+if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
-if "username" not in st.session_state: 
+if "username" not in st.session_state:
     st.session_state["username"] = ""
 
 # ==============================================================================
-# 4. LOGIN- & REGISTRIERUNGS-OBERFLÄCHE
+# AUTHENTIFIZIERUNG (LOGIN / REGISTER)
 # ==============================================================================
 if not st.session_state["logged_in"]:
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align: center;'>🎬 Creator Command Center</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #94A3B8; font-size: 18px;'>Deine Schaltzentrale für Content, Automation & Business.</p>", unsafe_allow_html=True)
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.title("🚀 Creator Command Center")
+    st.markdown("Willkommen im intelligenten Dashboard für Content Creator & Streamer. Bitte logge dich ein oder erstelle ein Konto.")
     
-    # Modernes Side-by-Side Layout für Login und Registrierung
-    col_login, col_register = st.columns(2)
+    tab_login, tab_register = st.tabs(["🔒 Einloggen", "📝 Registrieren"])
     
-    # --- LINKE SEITE: LOGIN ---
-    with col_login:
-        st.markdown("### 🔑 System-Login")
+    with tab_login:
         with st.form("login_form"):
-            user_input = st.text_input("Benutzername", placeholder="Dein Username", key="l_user")
-            pw_input = st.text_input("Passwort", type="password", placeholder="••••••••", key="l_pw")
+            username = st.text_input("Benutzername")
+            password = st.text_input("Passwort", type="password")
+            submit = st.form_submit_button("Anmelden", type="primary", use_container_width=True)
             
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.form_submit_button("🚀 System starten", type="primary", use_container_width=True):
-                if user_input and pw_input:
-                    conn = utils.get_db_connection()
-                    cursor = conn.cursor()
-                    
-                    # Passwort hashen und in der Neon-Datenbank prüfen
-                    hashed_pw = utils.hash_password(pw_input)
-                    cursor.execute("SELECT password FROM users WHERE username = %s", (user_input,))
-                    row = cursor.fetchone()
-                    cursor.close()
-                    conn.close()
-                    
-                    if row and row["password"] == hashed_pw:
-                        st.session_state["logged_in"] = True
-                        st.session_state["username"] = user_input
-                        st.success("✅ Zugriff gewährt!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Falscher Benutzername oder Passwort!")
-                else:
-                    st.error("⚠️ Bitte fülle alle Felder aus!")
-                    
-    # --- RECHTE SEITE: REGISTRIERUNG ---
-    with col_register:
-        st.markdown("### 📝 Account erstellen")
-        with st.form("register_form", clear_on_submit=True):
-            new_user = st.text_input("Wunsch-Benutzername", placeholder="z.B. CreatorXY", key="r_user")
-            new_pw = st.text_input("Sicheres Passwort", type="password", placeholder="••••••••", key="r_pw")
-            new_pw_confirm = st.text_input("Passwort bestätigen", type="password", placeholder="••••••••", key="r_pw_conf")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.form_submit_button("💾 Registrierung abschließen", use_container_width=True):
-                if not new_user or not new_pw:
-                    st.error("⚠️ Bitte alle Felder ausfüllen!")
-                elif new_pw != new_pw_confirm:
-                    st.error("❌ Die Passwörter stimmen nicht überein!")
-                else:
-                    conn = utils.get_db_connection()
-                    cursor = conn.cursor()
-                    
-                    # Prüfen, ob der Username bereits existiert
-                    cursor.execute("SELECT username FROM users WHERE username = %s", (new_user,))
-                    if cursor.fetchone():
-                        st.error("⚠️ Dieser Benutzername ist leider schon vergeben!")
+            if submit:
+                if username and password:
+                    hashed_pw = utils.hash_password(password)
+                    try:
+                        conn = utils.get_db_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (username, hashed_pw))
+                        user = cursor.fetchone()
                         cursor.close()
                         conn.close()
-                    else:
-                        # User sicher in der Cloud anlegen
-                        secure_pw = utils.hash_password(new_pw)
-                        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (new_user, secure_pw))
+                        
+                        if user:
+                            st.session_state["logged_in"] = True
+                            st.session_state["username"] = username
+                            st.success("Erfolgreich eingeloggt!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Falscher Benutzername oder Passwort.")
+                    except Exception as e:
+                        st.error(f"Datenbankfehler: {e}")
+                else:
+                    st.error("⚠️ Bitte alle Felder ausfüllen.")
+                    
+    with tab_register:
+        with st.form("register_form"):
+            new_username = st.text_input("Wunsch-Benutzername")
+            new_password = st.text_input("Sicheres Passwort", type="password")
+            submit_reg = st.form_submit_button("Konto erstellen", use_container_width=True)
+            
+            if submit_reg:
+                if new_username and new_password:
+                    hashed_pw = utils.hash_password(new_password)
+                    try:
+                        conn = utils.get_db_connection()
+                        cursor = conn.cursor()
+                        
+                        # Prüfen ob Nutzer existiert
+                        cursor.execute("SELECT username FROM users WHERE username = %s", (new_username,))
+                        if cursor.fetchone():
+                            st.error("⚠️ Dieser Benutzername ist leider schon vergeben.")
+                        else:
+                            cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (new_username, hashed_pw))
+                            st.success("🎉 Konto erfolgreich erstellt! Du kannst dich jetzt im ersten Reiter einloggen.")
                         cursor.close()
                         conn.close()
-                        st.success("🎉 Account erfolgreich in der Cloud gesichert! Logge dich jetzt links ein.")
-
-    # Verhindert, dass nicht eingeloggte Nutzer den Dashboard-Inhalt sehen
+                    except Exception as e:
+                        st.error(f"Datenbankfehler: {e}")
+                else:
+                    st.error("⚠️ Bitte alle Felder ausfüllen.")
     st.stop()
 
 # ==============================================================================
-# 5. MAIN DASHBOARD HUB (Sichtbar nach erfolgreichem Login)
+# DASHBOARD STARTSEITE (WENN EINGELOGGT)
 # ==============================================================================
-current_user = st.session_state["username"]
-
-# Sidebar-Willkommensgruß & Logout
-with st.sidebar:
-    st.markdown(f"### 👤 Angemeldet als:\n`{current_user}`")
-    if st.button("🚪 Abmelden", use_container_width=True):
-        st.session_state["logged_in"] = False
-        st.session_state["username"] = ""
-        st.rerun()
-
-# Hauptseite Überschrift
-st.title("🎬 Creator Command Center")
-st.markdown(f"**System-Status:** `Online` | Modern 2026 UI Engine")
+st.title(f"👋 Willkommen zurück, {st.session_state['username']}!")
+st.markdown("### 🚀 Deine Creator-Kommandozentrale (Edition 2026)")
 st.markdown("---")
 
-# Bento-Grid Layout für die Zentrale (Side-by-Side Kacheln)
-col_welcome, col_overview = st.columns(2)
+st.markdown(f"""
+<div class="bento-card">
+    <h3 style="margin-top:0; color: #FFFFFF;">✨ Deine neue 2026er Benutzeroberfläche ist nun bereit!</h3>
+    <p style="color: #94A3B8; font-size: 16px; line-height: 1.6; margin-bottom: 0;">
+        Durch die konsistente Verwendung von modularen Bento-Spalten, modernen Schriftarten und der direkten Cloud-Anbindung an deine Cloud-Datenbank ist dein Tool nun absolut zukunftssicher. Nutze einfach das Menü auf der linken Seite, um schrittweise deine Statistiken, Sendepläne oder Webhooks zu verwalten.
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
-with col_welcome:
-    st.markdown("### 🚀 Willkommen in deiner Schaltzentrale!")
+# Übersicht der Module als Bento-Grid
+col1, col2, col3 = st.columns(3)
+
+with col1:
     st.markdown(f"""
-    Hallo **{current_user}**! Alle deine Einstellungen, Anmeldedaten und Inhalte sind sicher mit deiner Cloud-Datenbank synchronisiert. 
-    Egal welche Updates wir am Code vornehmen – deine Daten bleiben ab jetzt immer bestehen.
+    <div class="bento-card">
+        <h4 style="margin-top:0;">📋 Ideen & ToDos</h4>
+        <p style="color: #94A3B8; font-size: 14px; margin-bottom:0;">Plane deinen Content, halte Geistesblitze fest und organisiere Checklists für deine Streams.</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    Nutze das **Seitenmenü links**, um nahtlos zwischen deinen Modulen zu wechseln. Jede Unterseite schützt deine Privatsphäre und lädt ausschließlich deine persönlichen Daten.
-    """)
+    st.markdown(f"""
+    <div class="bento-card">
+        <h4 style="margin-top:0;">📅 Sendeplan</h4>
+        <p style="color: #94A3B8; font-size: 14px; margin-bottom:0;">Strukturiere deine Streaming-Woche und verwalte deinen persönlichen Rennkalender.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-with col_overview:
-    with st.expander("📖 Modul-Übersicht: Schnellzugriff", expanded=True):
-        st.markdown("""
-        * **📊 Stats & Health:** Analysiere deine Reichweite und Community-Wachstum.
-        * **📝 Ideen & ToDos:** Plane deine nächsten Video-Projekte inklusive SEO-Fokus.
-        * **🤖 Discord Webhooks:** Automatisiere Benachrichtigungen direkt auf deinen Server.
-        * **🗓️ Sendeplan:** Behalte deine Streamingzeiten und Rennpläne im Griff.
-        * **💼 Business Hub:** Verwalte Verträge, Meilensteine und Affiliate-Partnerschaften.
-        """)
+with col2:
+    st.markdown(f"""
+    <div class="bento-card">
+        <h4 style="margin-top:0;">📊 Stats & Analytics</h4>
+        <p style="color: #94A3B8; font-size: 14px; margin-bottom:0;">Überwache dein Wachstum live per YouTube-API oder halte Meilensteine manuell in Diagrammen fest.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown(f"""
+    <div class="bento-card">
+        <h4 style="margin-top:0;">💬 Chat Befehle</h4>
+        <p style="color: #94A3B8; font-size: 14px; margin-bottom:0;">Schneller Zugriff auf deine wichtigsten Chat-Kommandos und Moderatoren-Richtlinien.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-st.success("✨ Das System läuft fehlerfrei und ist voll einsatzbereit. Viel Erfolg bei deinem Content!")
+with col3:
+    st.markdown(f"""
+    <div class="bento-card">
+        <h4 style="margin-top:0;">📢 Discord Webhooks</h4>
+        <p style="color: #94A3B8; font-size: 14px; margin-bottom:0;">Automatisiere Benachrichtigungen mit optimierten Algorithmus-Vorschauen für Social Media.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown(f"""
+    <div class="bento-card">
+        <h4 style="margin-top:0;">💼 Business Hub</h4>
+        <p style="color: #94A3B8; font-size: 14px; margin-bottom:0;">Behalte Kooperationen, Sponsoren-Kontakte und Einnahmen übersichtlich im Griff.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Logout-Button unten in der Seitenleiste platzieren
+st.sidebar.markdown("---")
+if st.sidebar.button("🚪 Ausloggen", use_container_width=True):
+    st.session_state["logged_in"] = False
+    st.session_state["username"] = ""
+    st.rerun()

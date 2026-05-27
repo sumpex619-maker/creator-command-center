@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 from datetime import datetime
 import utils
 
@@ -46,7 +45,7 @@ st.title("📊 Performance & Analytics Hub")
 st.markdown("Analysiere dein Wachstum schrittweise über automatische APIs oder manuelle Einträge.")
 st.markdown("---")
 
-# Aufteilung in Tabs, damit die Seite nicht überladen wirkt
+# Aufteilung in Tabs für maximale Übersichtlichkeit
 tab_live, tab_manual, tab_charts, tab_api = st.tabs([
     "📈 Live-Kanalstatus", 
     "✍️ Daten manuell eintragen", 
@@ -104,7 +103,7 @@ with tab_manual:
                 }
                 manual_data.append(new_entry)
                 utils.save_data("manual_stats", manual_data)
-                st.success(f"✅ Eintrag für {m_plattform} ({m_date}) erfolgreich in der Cloud gespeichert!")
+                st.success(f"✅ Eintrag für {m_plattform} ({m_date}) erfolgreich gesichert!")
                 st.rerun()
             else:
                 st.error("⚠️ Bitte gib einen Zeitpunkt oder Monat an!")
@@ -122,7 +121,6 @@ with tab_charts:
     else:
         df = pd.DataFrame(manual_data)
         
-        # Datentabelle im Expander versteckt halten für maximale Übersicht
         with st.expander("📋 Rohdaten anzeigen / Einträge löschen"):
             for entry in manual_data:
                 c_info, c_del = st.columns([4, 1])
@@ -134,44 +132,19 @@ with tab_charts:
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # Letzte Einträge pro Plattform für die Diagramme filtern
         df_latest = df.sort_values("id").groupby("plattform").last().reset_index()
         
         col_chart1, col_chart2 = st.columns(2)
         
         with col_chart1:
-            st.markdown("#### 📐 Verteilung nach Plattform (Balkendiagramm)")
-            # Streamlit-natives, perfekt gestyltes Balkendiagramm
+            st.markdown("#### 👥 Follower pro Plattform")
             chart_df = df_latest.set_index("plattform")[["followers"]]
             st.bar_chart(chart_df, color="#38BDF8")
             
         with col_chart2:
-            st.markdown("#### 🍕 Community-Anteile (Kreisdiagramm)")
-            
-            # Matplotlib Kreisdiagramm im Dark-Mode Style
-            fig, ax = plt.subplots(figsize=(6, 4.5))
-            fig.patch.set_facecolor('#0F172A')
-            ax.set_facecolor('#0F172A')
-            
-            # Farben für die Torte definieren
-            colors = ['#38BDF8', '#818CF8', '#A78BFA', '#F472B6', '#FBBF24', '#34D399']
-            
-            wedges, texts, autotexts = ax.pie(
-                df_latest["followers"], 
-                labels=df_latest["plattform"], 
-                autopct='%1.1f%%',
-                startangle=140,
-                colors=colors[:len(df_latest)],
-                textprops=dict(color="#F8FAFC")
-            )
-            
-            # Textfarbe der Prozentwerte anpassen
-            for autotext in autotexts:
-                autotext.set_color('#0F172A')
-                autotext.set_weight('bold')
-                
-            ax.axis('equal')  
-            st.pyplot(fig)
+            st.markdown("#### 👁️ Views pro Plattform")
+            chart_views = df_latest.set_index("plattform")[["views"]]
+            st.bar_chart(chart_views, color="#818CF8")
 
 # ==============================================================================
 # TAB 4: API-EINSTELLUNGEN
