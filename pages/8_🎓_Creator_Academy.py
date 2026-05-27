@@ -2,11 +2,45 @@ import streamlit as st
 import utils
 
 current_user = utils.check_login()
+
+# ==============================================================================
+# UNIVERSAL DESIGN ENGINE (Light & Dark Mode)
+# ==============================================================================
+if "theme" not in st.session_state: st.session_state["theme"] = "Midnight (Dark)"
+with st.sidebar:
+    new_theme = st.selectbox("🎨 Design", ["Midnight (Dark)", "Clean (Light)"], index=0 if st.session_state["theme"] == "Midnight (Dark)" else 1)
+    if new_theme != st.session_state["theme"]: st.session_state["theme"] = new_theme; st.rerun()
+
+if st.session_state["theme"] == "Midnight (Dark)":
+    BG = "#0F172A"; SIDEBAR = "#1E293B"; CARD = "rgba(30, 41, 59, 0.4)"; TEXT = "#F8FAFC"; BORDER = "rgba(255, 255, 255, 0.08)"; PRIM = "#38BDF8"
+else:
+    BG = "#F8FAFC"; SIDEBAR = "#F1F5F9"; CARD = "#FFFFFF"; TEXT = "#0F172A"; BORDER = "rgba(0, 0, 0, 0.1)"; PRIM = "#0284C7"
+
+st.markdown(f"""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Inter:wght@400;600&display=swap');
+    html, body, [class*="css"], .stMarkdown {{ font-family: 'Inter', sans-serif !important; color: {TEXT} !important; }}
+    .stApp {{ background-color: {BG} !important; }}
+    h1, h2, h3, h4 {{ font-family: 'Outfit', sans-serif !important; font-weight: 700 !important; color: {TEXT} !important; }}
+    [data-testid="stSidebar"] {{ background-color: {SIDEBAR} !important; border-right: 1px solid {BORDER}; }}
+    .bento-card, div[data-testid="stExpander"], .stAlert {{ background-color: {CARD} !important; border-radius: 16px !important; border: 1px solid {BORDER} !important; padding: 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; margin-bottom: 15px; }}
+    .stButton>button {{ border-radius: 10px !important; background-color: {SIDEBAR} !important; color: {TEXT} !important; border: 1px solid {BORDER} !important; font-family: 'Outfit', sans-serif !important; transition: all 0.2s; }}
+    .stButton>button:hover {{ border-color: {PRIM} !important; transform: translateY(-2px); }}
+    .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, {PRIM} 0%, #818CF8 100%) !important; border: none !important; color: white !important; }}
+    .stTabs [data-baseweb="tab-list"] {{ gap: 10px !important; }}
+    .stTabs [data-baseweb="tab"] {{ background-color: {CARD} !important; border-radius: 8px 8px 0 0 !important; padding: 10px 20px !important; color: {TEXT} !important; opacity: 0.8; }}
+    .stTabs [aria-selected="true"] {{ background-color: {PRIM} !important; color: white !important; font-weight: 600 !important; opacity: 1; }}
+</style>
+""", unsafe_allow_html=True)
+
+# ==============================================================================
+# SEITENINHALT
+# ==============================================================================
 st.title("🎓 Creator Academy")
 st.markdown("Dein Kompendium. Lerne die Tools kennen, die große Streamer nutzen.")
 st.markdown("---")
 
-t_bots, t_alerts, t_commands, t_guide = st.tabs(["🤖 Chat-Bots", "🔔 Alerts & Overlays", "💬 Chat-Befehle bauen", "📖 Streamer Basic Guide"])
+t_bots, t_alerts, t_guide = st.tabs(["🤖 Chat-Bots", "🔔 Alerts & Overlays", "📖 Streamer Basic Guide"])
 
 with t_bots:
     st.markdown("### Welcher Chat-Bot passt zu mir?")
@@ -14,14 +48,14 @@ with t_bots:
     
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown('<div class="bento-card"><h4>Nightbot</h4><p>Der Klassiker. Perfekt für Anfänger auf Twitch und YouTube. Sehr einfaches Interface, aber weniger visuelle Funktionen.</p><a href="https://nightbot.tv" target="_blank">Zu Nightbot</a></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="bento-card"><h4>Nightbot</h4><p>Der Klassiker. Perfekt für Anfänger auf Twitch und YouTube. Sehr einfaches Interface.</p><a href="https://nightbot.tv" style="color:{PRIM};">Zu Nightbot</a></div>', unsafe_allow_html=True)
     with c2:
-        st.markdown('<div class="bento-card"><h4>StreamElements</h4><p>Die All-in-One Lösung. Bot, Spenden-Seite und Alerts in einem. Erfordert etwas Einarbeitung, ist aber extrem mächtig.</p><a href="https://streamelements.com" target="_blank">Zu StreamElements</a></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="bento-card"><h4>StreamElements</h4><p>Die All-in-One Lösung. Bot, Spenden-Seite und Alerts in einem. Extrem mächtig.</p><a href="https://streamelements.com" style="color:{PRIM};">Zu StreamElements</a></div>', unsafe_allow_html=True)
     with c3:
-        st.markdown('<div class="bento-card"><h4>Botrix</h4><p>Pflichtprogramm für Kick und TikTok! Wer auf den neuen Plattformen streamt, kommt an Botrix kaum vorbei.</p><a href="https://botrix.live" target="_blank">Zu Botrix</a></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="bento-card"><h4>Botrix</h4><p>Pflichtprogramm für Kick und TikTok! Wer auf den neuen Plattformen streamt, kommt an Botrix kaum vorbei.</p><a href="https://botrix.live" style="color:{PRIM};">Zu Botrix</a></div>', unsafe_allow_html=True)
 
 with t_alerts:
-    st.markdown("### Woher bekomme ich Follow- & Sub-Benachrichtigungen?")
+    st.markdown("### Woher bekomme ich Grafiken?")
     st.info("Alerts bindest du über eine 'Browserquelle' (Browser Source) in OBS oder Streamlabs ein.")
     
     with st.expander("Tipp 1: StreamElements (Kostenlos)"):
@@ -29,14 +63,6 @@ with t_alerts:
     with st.expander("Tipp 2: Own3d.tv (Kostenpflichtig / Premium)"):
         st.write("Wenn du professionelle, aufwendige Grafiken suchst (z.B. spezielle Racing-Alerts), kannst du hier fertige Pakete kaufen. Sehr hochwertig!")
 
-with t_commands:
-    st.markdown("### Wie baue ich funktionierende Befehle (!commands)?")
-    st.write("Um dir eigene Befehle (wie `!discord` oder `!setup`) zu speichern, kannst du links den Reiter **'💬 Chat Befehle'** nutzen. Das dient aber nur als Notizzettel! Um sie aktiv zu machen, musst du sie in deinem Bot eintragen.")
-    
-    st.markdown("#### Beispiel für StreamElements / Nightbot")
-    st.code("!addcmd !discord Tritt meinem Community-Server bei: https://discord.gg/deinlink")
-    st.markdown("- **!addcmd** = Sagt dem Bot, dass er einen neuen Befehl lernen soll.\n- **!discord** = Das ist das Wort, das der Zuschauer im Chat tippt.\n- **Der Rest** = Das ist die Antwort des Bots.")
-    
 with t_guide:
     st.markdown("### 1x1 für neue Streamer")
     st.markdown("""
