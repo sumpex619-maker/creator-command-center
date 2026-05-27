@@ -1,7 +1,6 @@
 import streamlit as st
-import pandas as pd
-from datetime import datetime
 import utils
+import time
 
 current_user = utils.check_login()
 
@@ -14,9 +13,9 @@ with st.sidebar:
     if new_theme != st.session_state["theme"]: st.session_state["theme"] = new_theme; st.rerun()
 
 if st.session_state["theme"] == "Midnight (Dark)":
-    BG = "#0F172A"; SIDEBAR = "#1E293B"; CARD = "rgba(30, 41, 59, 0.4)"; TEXT = "#F8FAFC"; BORDER = "rgba(255, 255, 255, 0.08)"; PRIM = "#38BDF8"
+    BG, SIDEBAR, CARD, TEXT, BORDER, PRIM = "#0F172A", "#1E293B", "rgba(30, 41, 59, 0.4)", "#F8FAFC", "rgba(255, 255, 255, 0.08)", "#38BDF8"
 else:
-    BG = "#F8FAFC"; SIDEBAR = "#F1F5F9"; CARD = "#FFFFFF"; TEXT = "#0F172A"; BORDER = "rgba(0, 0, 0, 0.1)"; PRIM = "#0284C7"
+    BG, SIDEBAR, CARD, TEXT, BORDER, PRIM = "#F8FAFC", "#F1F5F9", "#FFFFFF", "#0F172A", "rgba(0, 0, 0, 0.1)", "#0284C7"
 
 st.markdown(f"""
 <style>
@@ -25,115 +24,138 @@ st.markdown(f"""
     .stApp {{ background-color: {BG} !important; }}
     h1, h2, h3, h4 {{ font-family: 'Outfit', sans-serif !important; font-weight: 700 !important; color: {TEXT} !important; }}
     [data-testid="stSidebar"] {{ background-color: {SIDEBAR} !important; border-right: 1px solid {BORDER}; }}
-    .bento-card, div[data-testid="stExpander"], .stAlert, .metric-box {{ background-color: {CARD} !important; border-radius: 16px !important; border: 1px solid {BORDER} !important; padding: 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; margin-bottom: 15px; }}
+    .bento-card, div[data-testid="stExpander"], .stAlert {{ background-color: {CARD} !important; border-radius: 16px !important; border: 1px solid {BORDER} !important; padding: 20px !important; margin-bottom: 15px; }}
     .stButton>button {{ border-radius: 10px !important; background-color: {SIDEBAR} !important; color: {TEXT} !important; border: 1px solid {BORDER} !important; font-family: 'Outfit', sans-serif !important; transition: all 0.2s; }}
     .stButton>button:hover {{ border-color: {PRIM} !important; transform: translateY(-2px); }}
     .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, {PRIM} 0%, #818CF8 100%) !important; border: none !important; color: white !important; }}
-    .stTextInput>div>div, .stSelectbox>div>div, .stNumberInput>div>div {{ border-radius: 10px !important; background-color: {SIDEBAR} !important; border: 1px solid {BORDER} !important; color: {TEXT} !important; }}
-    .stTabs [data-baseweb="tab-list"] {{ gap: 10px !important; }}
-    .stTabs [data-baseweb="tab"] {{ background-color: {CARD} !important; border-radius: 8px 8px 0 0 !important; padding: 10px 20px !important; color: {TEXT} !important; opacity: 0.8; }}
-    .stTabs [aria-selected="true"] {{ background-color: {PRIM} !important; color: white !important; font-weight: 600 !important; opacity: 1; }}
+    .stTextInput>div>div, .stSelectbox>div>div, .stTextArea>div>div, .stNumberInput>div>div {{ border-radius: 10px !important; background-color: {SIDEBAR} !important; border: 1px solid {BORDER} !important; color: {TEXT} !important; }}
 </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# SEITENINHALT
+# DATA HANDLING & WEBHOOKS FETCH
 # ==============================================================================
-st.title("📊 Performance & Analytics Hub")
-st.markdown("Analysiere dein Wachstum schrittweise über automatische APIs oder manuelle Einträge.")
+# Vorhandene Webhooks laden, um Reports senden zu können
+conn = utils.get_db_connection()
+cursor = conn.cursor()
+cursor.execute("SELECT profile_name, url, role_id FROM webhooks WHERE username = %s", (current_user,))
+all_hooks = cursor.fetchall()
+cursor.close(); conn.close()
+
+# Stats-Datenbank (Nutzerbasiert laden)
+stats_data = utils.load_data(f"stats_posts_{current_user}", dict)
+
+st.title("📊 Stats & Content Analytics")
+st.markdown("Trage deine Beitragsdaten ein, analysiere die Performance deiner Formate und teile deine Meilensteine direkt auf Discord.")
 st.markdown("---")
 
-tab_live, tab_manual, tab_charts, tab_api = st.tabs(["📈 Live-Kanalstatus", "✍️ Daten manuell eintragen", "📊 Diagramme & Analyse", "🔑 API-Einstellungen"])
+col_eingabe, col_historie = st.columns([2, 3], gap="large")
 
-with tab_live:
-    st.markdown("### 🎥 Echtzeit-API-Abfrage")
-    try:
-        stats, error = utils.fetch_youtube_stats(current_user)
-    except Exception:
-        stats, error = None, "Fehler beim Laden des Statistik-Moduls."
-
-    if stats:
-        m1, m2, m3 = st.columns(3)
-        with m1:
-            st.markdown(f'<div class="metric-box"><p style="margin: 0; font-size: 14px;">👥 Abonnenten</p><p style="color: {PRIM}; margin: 5px 0 0 0; font-size: 26px; font-weight: 700;">{stats.get("subscribers", 0):,}</p></div>', unsafe_allow_html=True)
-        with m2:
-            st.markdown(f'<div class="metric-box"><p style="margin: 0; font-size: 14px;">👁️ Gesamt-Aufrufe</p><p style="color: {PRIM}; margin: 5px 0 0 0; font-size: 26px; font-weight: 700;">{stats.get("views", 0):,}</p></div>', unsafe_allow_html=True)
-        with m3:
-            st.markdown(f'<div class="metric-box"><p style="margin: 0; font-size: 14px;">🎬 Videos online</p><p style="color: {PRIM}; margin: 5px 0 0 0; font-size: 26px; font-weight: 700;">{stats.get("videos", 0):,}</p></div>', unsafe_allow_html=True)
-    else:
-        st.info(error if error else "ℹ️ Bisher sind keine Live-Daten verfügbar. Nutze den letzten Tab, um deine API zu verbinden.")
-
-with tab_manual:
-    st.markdown("### ✍️ Statistik manuell erfassen")
-    with st.form("manual_stats_form", clear_on_submit=True):
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            m_plattform = st.selectbox("Plattform", ["Twitch", "YouTube", "Kick", "Instagram", "TikTok", "X"])
-            m_followers = st.number_input("Follower / Abonnenten Anzahl", min_value=0, step=1)
-        with col_m2:
-            m_date = st.text_input("Zeitpunkt / Monat", placeholder=datetime.now().strftime("%B %Y"))
-            m_views = st.number_input("Monatliche Aufrufe / Views (optional)", min_value=0, step=1)
-            
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.form_submit_button("💾 Datenpunkt sichern", type="primary", use_container_width=True):
-            if m_date:
-                manual_data = utils.load_data("manual_stats", list)
-                manual_data.append({"id": str(datetime.now().timestamp()), "plattform": m_plattform, "followers": m_followers, "views": m_views, "zeitpunkt": m_date})
-                utils.save_data("manual_stats", manual_data)
-                st.success(f"✅ Eintrag für {m_plattform} erfolgreich gesichert!")
-                st.rerun()
-            else:
-                st.error("⚠️ Bitte gib einen Zeitpunkt oder Monat an!")
-
-with tab_charts:
-    st.markdown("### 📊 Visuelle Auswertung")
-    manual_data = utils.load_data("manual_stats", list)
+# --- LINKE SPALTE: POST-DETAILS EINTRAGEN ---
+with col_eingabe:
+    st.subheader("📝 Neuen Post erfassen")
     
-    if not manual_data:
-        st.info("ℹ️ Noch keine manuellen Datenpunkte vorhanden. Trage im vorherigen Reiter Daten ein.")
-    else:
-        df = pd.DataFrame(manual_data)
-        with st.expander("📋 Rohdaten anzeigen / Einträge löschen"):
-            for entry in manual_data:
-                c_info, c_del = st.columns([4, 1])
-                c_info.markdown(f"**{entry['plattform']}** ({entry['zeitpunkt']}): `{entry['followers']:,}` Follower | `{entry['views']:,}` Views")
-                if c_del.button("🗑️", key=f"del_stat_{entry['id']}"):
-                    manual_data = [e for e in manual_data if e['id'] != entry['id']]
-                    utils.save_data("manual_stats", manual_data)
-                    st.rerun()
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        df_latest = df.sort_values("id").groupby("plattform").last().reset_index()
-        col_chart1, col_chart2 = st.columns(2)
+    with st.form("stats_entry_form", clear_on_submit=True):
+        post_title = st.text_input("Titel des Posts / Themas", placeholder="z.B. Mein erstes F1 2026 Rennen!")
         
-        with col_chart1:
-            st.markdown("#### 👥 Follower pro Plattform")
-            chart_df = df_latest.set_index("plattform")[["followers"]]
-            st.bar_chart(chart_df, color=PRIM)
+        c_form1, c_form2 = st.columns(2)
+        with c_form1:
+            post_format = st.selectbox("Inhaltstyp (Format)", ["Short / Reel / TikTok", "Normaler Post / Video", "Livestream"])
+        with c_form2:
+            plattform = st.selectbox("Plattform", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"])
             
-        with col_chart2:
-            st.markdown("#### 👁️ Views pro Plattform")
-            chart_views = df_latest.set_index("plattform")[["views"]]
-            st.bar_chart(chart_views, color="#818CF8")
-
-with tab_api:
-    st.markdown("### 🔑 API-Schnittstellen verwalten")
-    with st.form("api_credentials_form", clear_on_submit=False):
-        plattform = st.selectbox("Plattform wählen", ["YouTube"])
-        channel_id = st.text_input("Kanal-ID (Channel ID)", placeholder="UC...", help="Deine eindeutige YouTube-Kanal-ID")
-        api_key = st.text_input("API-Schlüssel (API Key)", type="password", placeholder="AIzaSy...", help="Dein Google Cloud API-Key")
+        st.markdown("**🔢 Performance-Metriken**")
+        c_met1, c_met2 = st.columns(2)
+        with c_met1:
+            views = st.number_input("Aufrufe / Views", min_value=0, step=1, value=0)
+            comments = st.number_input("Kommentare", min_value=0, step=1, value=0)
+        with c_met2:
+            likes = st.number_input("Gefällt mir / Likes", min_value=0, step=1, value=0)
+            shares = st.number_input("Teilungen / Shares", min_value=0, step=1, value=0)
+            
+        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+        submit_btn = st.form_submit_button("💾 Post-Daten speichern", type="primary", use_container_width=True)
         
-        if st.form_submit_button("🔗 API verbinden", type="primary", use_container_width=True):
-            if channel_id and api_key:
-                conn = utils.get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO api_credentials (username, platform, channel_id, api_key)
-                    VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (username, platform) DO UPDATE SET channel_id = EXCLUDED.channel_id, api_key = EXCLUDED.api_key
-                """, (current_user, plattform, channel_id, api_key))
-                cursor.close(); conn.close()
-                st.success(f"✅ API-Daten für {plattform} gesichert!")
+        if submit_btn:
+            if post_title:
+                post_id = str(int(time.time()))  # Einzigartige ID auf Zeitstempelbasis
+                stats_data[post_id] = {
+                    "title": post_title,
+                    "format": post_format,
+                    "platform": plattform,
+                    "views": views,
+                    "likes": likes,
+                    "comments": comments,
+                    "shares": shares,
+                    "date": time.strftime("%d.%m.%Y")
+                }
+                utils.save_data(f"stats_posts_{current_user}", stats_data)
+                st.success(f"🎉 '{post_title}' wurde erfolgreich gesichert!")
                 st.rerun()
             else:
-                st.error("⚠️ Bitte fülle alle Felder aus!")
+                st.error("⚠️ Bitte gib dem Post einen Namen oder Titel.")
+
+# --- RECHTE SPALTE: POSTS ANZEIGEN & AUF DISCORD POSTEN ---
+with col_historie:
+    st.subheader("📋 Gespeicherte Beiträge & Export")
+    
+    if not stats_data:
+        st.info("Noch keine Post-Statistiken erfasst. Nutze das linke Formular, um deine ersten Daten einzutragen.")
+    else:
+        # Posts sortieren (Neueste zuerst)
+        sorted_posts = sorted(stats_data.items(), key=lambda x: x[0], reverse=True)
+        
+        for p_id, p_info in sorted_posts:
+            # Emoji je nach Format wählen
+            format_emoji = "🎬" if "Short" in p_info["format"] else ("📹" if "Video" in p_info["format"] else "📺")
+            
+            with st.container(border=True):
+                st.markdown(f"### {format_emoji} {p_info['title']}")
+                st.markdown(f"📅 **Datum:** {p_info['date']} | 🌐 **Plattform:** `{p_info['platform']}` | 📁 **Format:** `{p_info['format']}`")
+                
+                # Werte-Übersicht in Kacheln
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("👀 Views", f"{p_info['views']:,}")
+                m2.metric("❤️ Likes", f"{p_info['likes']:,}")
+                m3.metric("💬 Komms", f"{p_info['comments']:,}")
+                m4.metric("🔗 Shares", f"{p_info['shares']:,}")
+                
+                st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
+                
+                # Discord Export Sektion innerhalb der Karte
+                if all_hooks:
+                    hook_options = {h[0]: {"url": h[1], "role_id": h[2]} for h in all_hooks}
+                    
+                    c_sel, c_btn, c_del = st.columns([2, 2, 1])
+                    with c_sel:
+                        selected_hook = st.selectbox("Kanal wählen", list(hook_options.keys()), key=f"hk_{p_id}")
+                    with c_btn:
+                        if st.button("🚀 Discord Alert", key=f"send_{p_id}", use_container_width=True):
+                            hook_data = hook_options[selected_hook]
+                            
+                            # Rollen-Ping vorbereiten
+                            role_ping = f"<@&{hook_data['role_id']}>\n\n" if hook_data["role_id"] else ""
+                            
+                            # Discord-Nachricht lesbar strukturieren
+                            discord_msg = (
+                                f"{role_ping}📊 **NEUER STATS-REPORT ONLINE!** 📊\n\n"
+                                f"📌 **Beitrag:** {p_info['title']}\n"
+                                f"🌐 **Plattform:** {p_info['platform']} | {format_emoji} **Typ:** {p_info['format']}\n"
+                                f"----------------------------------------\n"
+                                f"👀 **Aufrufe (Views):** {p_info['views']:,}\n"
+                                f"❤️ **Gefällt mir (Likes):** {p_info['likes']:,}\n"
+                                f"💬 **Kommentare:** {p_info['comments']:,}\n"
+                                f"🔗 **Teilungen (Shares):** {p_info['shares']:,}\n\n"
+                                f"📈 *Gemeinsam wachsen! Danke für euren Support!*"
+                            )
+                            
+                            success, resp = utils.send_discord_webhook(hook_data["url"], text_content=discord_msg)
+                            if success: st.success("Post gesendet!")
+                            else: st.error("Fehler beim Senden.")
+                    with c_del:
+                        if st.button("🗑️", key=f"del_{p_id}", use_container_width=True, help="Eintrag aus Statistik löschen"):
+                            del stats_data[p_id]
+                            utils.save_data(f"stats_posts_{current_user}", stats_data)
+                            st.rerun()
+                else:
+                    st.caption("ℹ️ Um diese Stats auf Discord zu teilen, richte zuerst einen Webhook in den Einstellungen ein.")
