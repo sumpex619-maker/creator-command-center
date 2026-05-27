@@ -25,7 +25,7 @@ st.markdown(f"""
     .stApp {{ background-color: {BG} !important; }}
     h1, h2, h3, h4 {{ font-family: 'Outfit', sans-serif !important; font-weight: 700 !important; color: {TEXT} !important; }}
     [data-testid="stSidebar"] {{ background-color: {SIDEBAR} !important; border-right: 1px solid {BORDER}; }}
-    .bento-card, div[data-testid="stExpander"], .stAlert {{ background-color: {CARD} !important; border-radius: 16px !important; border: 1px solid {BORDER} !important; padding: 20px !important; margin-bottom: 15px; }}
+    .bento-card, div[data-testid="stExpander"], .stAlert, div[data-testid="stForm"] {{ background-color: {CARD} !important; border-radius: 16px !important; border: 1px solid {BORDER} !important; padding: 20px !important; margin-bottom: 15px; }}
     .stButton>button {{ border-radius: 10px !important; background-color: {SIDEBAR} !important; color: {TEXT} !important; border: 1px solid {BORDER} !important; font-family: 'Outfit', sans-serif !important; transition: all 0.2s; }}
     .stButton>button:hover {{ border-color: {PRIM} !important; transform: translateY(-2px); }}
     .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, {PRIM} 0%, #818CF8 100%) !important; border: none !important; color: white !important; }}
@@ -34,7 +34,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# DATEN LADEN & WEBHOOKS HIERARCHIE
+# DATEN MANAGEMENT
 # ==============================================================================
 conn = utils.get_db_connection()
 cursor = conn.cursor()
@@ -42,22 +42,19 @@ cursor.execute("SELECT profile_name, url, role_id FROM webhooks WHERE username =
 all_hooks = cursor.fetchall()
 cursor.close(); conn.close()
 
-# Datenbank-Key ohne Doppel-Unterstrich, um mit utils.load_data kompatibel zu bleiben
 stats_data = utils.load_data(f"stats_{current_user}", dict)
 
 st.title("📊 Stats & Content Analytics")
-st.markdown("Überwache deine Live-Plattformdaten, vergleiche Formate grafisch und verwalte deine Post-Historie.")
+st.markdown("Überwache deine Live-Plattformdaten, analysiere Interaktionsraten und vergleiche deine Beiträge einzeln.")
 st.markdown("---")
 
 # ==============================================================================
 # EBENE 1: LIVE API-STATISTIKEN (YOUTUBE)
 # ==============================================================================
 st.subheader("🔴 Live-Kanaldaten (YouTube API)")
-
 yt_stats, yt_error = utils.fetch_youtube_stats(current_user)
 
 if yt_stats:
-    # Stylischer Bento-Grid-Zähler für die Live-Statistiken
     c_api1, c_api2, c_api3 = st.columns(3)
     with c_api1:
         st.markdown(f'<div class="bento-card" style="text-align: center;"><p style="margin:0; font-size:14px; opacity:0.7;">Abonnenten</p><h2 style="margin:5px 0 0 0; color:{PRIM}; font-size:32px;">{yt_stats["subscribers"]:,}</h2></div>', unsafe_allow_html=True)
@@ -68,73 +65,90 @@ if yt_stats:
 else:
     st.info(f"ℹ️ YouTube Live-Daten inaktiv: {yt_error if yt_error else 'Keine Verbindung eingerichtet.'}")
 
-# Ausklappbare API-Verwaltung für den Creator
 with st.expander("🔑 YouTube API-Schlüssel einrichten / ändern"):
     existing_creds = utils.load_api_credentials(current_user, "YouTube")
     ex_channel = existing_creds["channel_id"] if existing_creds else ""
     ex_key = existing_creds["api_key"] if existing_creds else ""
     
     with st.form("api_config_form"):
-        new_channel = st.text_input("YouTube Kanal-ID (Channel ID)", value=ex_channel, placeholder="UC...", help="Zu finden in den erweiterten YouTube-Kontoeinstellungen.")
-        new_key = st.text_input("YouTube API-Key (Google Cloud Console)", value=ex_key, type="password", placeholder="AIzaSy...")
-        
+        new_channel = st.text_input("YouTube Kanal-ID (Channel ID)", value=ex_channel)
+        new_key = st.text_input("YouTube API-Key", value=ex_key, type="password")
         if st.form_submit_button("💾 API-Daten sichern", use_container_width=True):
             if new_channel and new_key:
                 utils.save_api_credentials(current_user, "YouTube", new_channel, new_key)
-                st.success("✅ API-Zugangsdaten erfolgreich aktualisiert! Lade Daten neu...")
-                time.sleep(1)
+                st.success("✅ API-Zugangsdaten erfolgreich aktualisiert!")
+                time.sleep(0.5)
                 st.rerun()
-            else:
-                st.error("⚠️ Bitte fülle beide Felder aus!")
 
 st.markdown("---")
 
 # ==============================================================================
-# EBENE 2: ANALYSEN & GRAFIKEN (VISUALISIERUNG DER POST-PERFORMANCE)
+# EBENE 2: GRANULARE ANALYSEN & INTERAKTIONS-GRAFIKEN
 # ==============================================================================
-st.subheader("📈 Format-Performance im Vergleich")
+st.subheader("📈 Beitrags-Performance & Interaktionsrate")
 
 if stats_data:
-    # Daten für das Diagramm aufbereiten
+    # Daten für interaktive Grafiken vorbereiten (Inklusive ER-Berechnung)
     chart_rows = []
     for p_id, p_info in stats_data.items():
+        v = p_info["views"]
+        interactions = p_info.get("likes", 0) + p_info.get("comments", 0) + p_info.get("shares", 0)
+        # Formel für Interaktionsrate
+        er = (interactions / v * 100) if v > 0 else 0.0
+        
         chart_rows.append({
+            "Beitrag": p_info["title"],
             "Format": p_info["format"],
-            "Aufrufe (Views)": p_info["views"],
-            "Likes": p_info["likes"]
+            "Views": v,
+            "Likes": p_info.get("likes", 0),
+            "Kommentare": p_info.get("comments", 0),
+            "Shares": p_info.get("shares", 0),
+            "Interaktionsrate (%)": round(er, 2)
         })
     df_stats = pd.DataFrame(chart_rows)
     
-    # Aggregieren nach Format
-    df_grouped = df_stats.groupby("Format")[["Aufrufe (Views)", "Likes"]].sum()
+    # Steuerungselement für das granulare Diagramm
+    c_ctrl1, c_ctrl2 = st.columns([3, 2])
+    with c_ctrl1:
+        ausgewaehlte_metrik = st.selectbox(
+            "📊 Welche Metrik möchtest du im Diagramm vergleichen?",
+            ["Views", "Likes", "Kommentare", "Shares", "Interaktionsrate (%)"]
+        )
     
-    # Layout für Grafiken
-    c_graph1, c_graph2 = st.columns([2, 1])
-    with c_graph1:
-        st.markdown("**Gesamte Aufrufe nach Inhaltstyp**")
-        st.bar_chart(df_grouped["Aufrufe (Views)"], color=PRIM)
-    with c_graph2:
-        st.markdown("**Durchschnittliche Performance**")
-        df_avg = df_stats.groupby("Format")["Aufrufe (Views)"].mean().round(1)
-        for fmt, avg_val in df_avg.items():
-            st.markdown(f"**{fmt}:**")
-            st.code(f"{int(avg_val):,} Ø Views / Post")
+    # Diagramm rendern (Zeigt jetzt jeden Post einzeln an)
+    df_chart = df_stats.set_index("Beitrag")[[ausgewaehlte_metrik]]
+    st.bar_chart(df_chart, color=PRIM, use_container_width=True)
+    
+    # Übersicht der durchschnittlichen Interaktionsrate nach Format
+    st.markdown("**🎯 Durchschnittliche Interaktionsrate nach Inhaltstyp:**")
+    df_avg_er = df_stats.groupby("Format")["Interaktionsrate (%)"].mean().round(2)
+    c_fmt1, c_fmt2, c_fmt3 = st.columns(3)
+    formats_list = list(df_avg_er.index)
+    
+    with c_fmt1:
+        val = df_avg_er.get("Short / Reel / TikTok", 0.0)
+        st.markdown(f"🎬 **Shorts/Reels:** ` {val}% Ø Rate `")
+    with c_fmt2:
+        val = df_avg_er.get("Normaler Post / Video", 0.0)
+        st.markdown(f"📹 **Videos/Posts:** ` {val}% Ø Rate `")
+    with c_fmt3:
+        val = df_avg_er.get("Livestream", 0.0)
+        st.markdown(f"📺 **Livestreams:** ` {val}% Ø Rate `")
 else:
-    st.info("📊 Sobald du unten deine ersten Post-Daten einträgst, wird hier automatisch eine visuelle Analyse generiert.")
+    st.info("📊 Sobald du unten Posts einträgst, erscheinen hier die präzisen Einzel-Diagramme und Interaktionsraten.")
 
 st.markdown("---")
 
 # ==============================================================================
-# EBENE 3: MODULARER POST-MANAGER (SIDE-BY-SIDE DESIGN)
+# EBENE 3: MODULARER POST-MANAGER (EINGABE & BEARBEITBARER VERLAUF)
 # ==============================================================================
 col_eingabe, col_historie = st.columns([2, 3], gap="large")
 
-# --- LINKE SPALTE: POSTS MANUELL ERFASSEN ---
+# --- LINKS: NEUEN POST SPEICHERN ---
 with col_eingabe:
     st.subheader("📝 Neuen Post erfassen")
     with st.form("stats_entry_form", clear_on_submit=True):
         post_title = st.text_input("Titel des Beitrags", placeholder="z.B. Meisterschaftslauf Spa-Francorchamps")
-        
         c_f1, c_f2 = st.columns(2)
         with c_f1:
             post_format = st.selectbox("Format (Typ)", ["Short / Reel / TikTok", "Normaler Post / Video", "Livestream"])
@@ -150,85 +164,123 @@ with col_eingabe:
             likes = st.number_input("Likes / Gefällt mir", min_value=0, step=1, value=0)
             shares = st.number_input("Teilungen / Shares", min_value=0, step=1, value=0)
             
-        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
         if st.form_submit_button("💾 Post-Daten speichern", type="primary", use_container_width=True):
             if post_title:
                 post_id = str(int(time.time()))
                 stats_data[post_id] = {
-                    "title": post_title,
-                    "format": post_format,
-                    "platform": plattform,
-                    "views": views,
-                    "likes": likes,
-                    "comments": comments,
-                    "shares": shares,
+                    "title": post_title, "format": post_format, "platform": plattform,
+                    "views": views, "likes": likes, "comments": comments, "shares": shares,
                     "date": time.strftime("%d.%m.%Y")
                 }
                 utils.save_data(f"stats_{current_user}", stats_data)
-                st.success(f"🎉 '{post_title}' wurde archiviert!")
-                time.sleep(0.5)
+                st.success("🎉 Beitrag erfolgreich archiviert!")
+                time.sleep(0.3)
                 st.rerun()
-            else:
-                st.error("⚠️ Bitte gib dem Post einen gültigen Titel.")
 
-# --- RECHTE SPALTE: HISTORIE & DISCORD EXPORT ---
+# --- RECHTS: VERLAUF MIT EDITIER-OPTION ---
 with col_historie:
     st.subheader("📋 Beitrags-Archiv & Reports")
     
     if not stats_data:
-        st.info("Noch keine Beiträge erfasst. Nutze das linke Menü!")
+        st.info("Noch keine Beiträge erfasst.")
     else:
         sorted_posts = sorted(stats_data.items(), key=lambda x: x[0], reverse=True)
         
         for p_id, p_info in sorted_posts:
             format_emoji = "🎬" if "Short" in p_info["format"] else ("📹" if "Video" in p_info["format"] else "📺")
             
+            # Interaktionsrate für diesen spezifischen Post berechnen
+            v_single = p_info["views"]
+            inter_single = p_info.get("likes", 0) + p_info.get("comments", 0) + p_info.get("shares", 0)
+            er_single = (inter_single / v_single * 100) if v_single > 0 else 0.0
+            
+            # Keys für den Bearbeitungsstatus erzeugen
+            edit_state_key = f"edit_stat_active_{p_id}"
+            if edit_state_key not in st.session_state:
+                st.session_state[edit_state_key] = False
+                
             with st.container(border=True):
                 st.markdown(f"### {format_emoji} {p_info['title']}")
                 st.markdown(f"📅 {p_info['date']} | 🌐 `{p_info['platform']}` | 📁 `{p_info['format']}`")
                 
-                # Performance Grid
-                m1, m2, m3, m4 = st.columns(4)
+                # Metriken-Kacheln inklusive der neuen Interaktionsrate
+                m1, m2, m3 = st.columns(3)
                 m1.metric("👀 Views", f"{p_info['views']:,}")
                 m2.metric("❤️ Likes", f"{p_info['likes']:,}")
-                m3.metric("💬 Komms", f"{p_info['comments']:,}")
-                m4.metric("🔗 Shares", f"{p_info['shares']:,}")
+                m3.metric("📈 Interaktionsrate", f"{er_single:.2f}%")
                 
                 st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
                 
-                # Discord Export Funktionen
-                if all_hooks:
-                    hook_options = {h[0]: {"url": h[1], "role_id": h[2]} for h in all_hooks}
-                    
-                    c_sel, c_btn, c_del = st.columns([2, 2, 1])
-                    with c_sel:
-                        selected_hook = st.selectbox("Kanal wählen", list(hook_options.keys()), key=f"hk_{p_id}")
-                    with c_btn:
-                        if st.button("🚀 Discord Report", key=f"send_{p_id}", use_container_width=True):
-                            hook_data = hook_options[selected_hook]
+                # AKTIVER BEARBEITUNGSMODUS
+                if st.session_state[edit_state_key]:
+                    st.markdown("---")
+                    st.markdown("**✏️ Daten anpassen**")
+                    with st.form(f"form_edit_stat_{p_id}"):
+                        edit_title = st.text_input("Titel", value=p_info["title"])
+                        edit_format = st.selectbox("Format", ["Short / Reel / TikTok", "Normaler Post / Video", "Livestream"], index=["Short / Reel / TikTok", "Normaler Post / Video", "Livestream"].index(p_info["format"]))
+                        edit_platform = st.selectbox("Plattform", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"], index=["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"].index(p_info["platform"]))
+                        
+                        ce1, ce2 = st.columns(2)
+                        with ce1:
+                            edit_views = st.number_input("Views", min_value=0, value=p_info["views"])
+                            edit_comments = st.number_input("Kommentare", min_value=0, value=p_info.get("comments", 0))
+                        with ce2:
+                            edit_likes = st.number_input("Likes", min_value=0, value=p_info.get("likes", 0))
+                            edit_shares = st.number_input("Shares", min_value=0, value=p_info.get("shares", 0))
                             
-                            # Automatischer Rollen-Ping Code-Zusammenbau
-                            role_ping = f"<@&{hook_data['role_id']}>\n\n" if hook_data["role_id"] else ""
-                            
-                            discord_msg = (
-                                f"{role_ping}📊 **POST PERFORMANCE REPORT** 📊\n\n"
-                                f"📌 **Beitrag:** {p_info['title']}\n"
-                                f"🌐 **Plattform:** {p_info['platform']} | {format_emoji} **Format:** {p_info['format']}\n"
-                                f"----------------------------------------\n"
-                                f"👀 **Aufrufe (Views):** {p_info['views']:,}\n"
-                                f"❤️ **Gefällt mir (Likes):** {p_info['likes']:,}\n"
-                                f"💬 **Kommentare:** {p_info['comments']:,}\n"
-                                f"🔗 **Teilungen (Shares):** {p_info['shares']:,}\n\n"
-                                f"📈 *Statistiken wurden live über das Creator Dashboard exportiert!*"
-                            )
-                            
-                            success, resp = utils.send_discord_webhook(hook_data["url"], text_content=discord_msg)
-                            if success: st.success("Report gesendet!")
-                            else: st.error("Fehler beim Senden.")
-                    with c_del:
-                        if st.button("🗑️", key=f"del_{p_id}", use_container_width=True, help="Eintrag löschen"):
-                            del stats_data[p_id]
-                            utils.save_data(f"stats_{current_user}", stats_data)
-                            st.rerun()
+                        c_sub1, c_sub2 = st.columns(2)
+                        with c_sub1:
+                            if st.form_submit_button("💾 Übernehmen", use_container_width=True):
+                                stats_data[p_id] = {
+                                    "title": edit_title, "format": edit_format, "platform": edit_platform,
+                                    "views": edit_views, "likes": edit_likes, "comments": edit_comments, "shares": edit_shares,
+                                    "date": p_info["date"] # Datum bleibt bestehen
+                                }
+                                utils.save_data(f"stats_{current_user}", stats_data)
+                                st.session_state[edit_state_key] = False
+                                st.success("Aktualisiert!")
+                                time.sleep(0.3)
+                                st.rerun()
+                        with c_sub2:
+                            if st.form_submit_button("❌ Abbrechen", use_container_width=True):
+                                st.session_state[edit_state_key] = False
+                                st.rerun()
+                
+                # NORMALANSICHT: STEUERUNGSBAR FÜR DISCORD & AKTIONEN
                 else:
-                    st.caption("ℹ️ Richte in den Webhook-Einstellungen Kanäle ein, um diese Reports an Discord zu senden.")
+                    if all_hooks:
+                        hook_options = {h[0]: {"url": h[1], "role_id": h[2]} for h in all_hooks}
+                        c_sel, c_btn, c_edit, c_del = st.columns([1.5, 1.5, 0.6, 0.6])
+                        
+                        with c_sel:
+                            selected_hook = st.selectbox("Kanal", list(hook_options.keys()), key=f"hk_{p_id}")
+                        with c_btn:
+                            if st.button("🚀 Report", key=f"send_{p_id}", use_container_width=True):
+                                hook_data = hook_options[selected_hook]
+                                role_ping = f"<@&{hook_data['role_id']}>\n\n" if hook_data["role_id"] else ""
+                                
+                                discord_msg = (
+                                    f"{role_ping}📊 **POST PERFORMANCE REPORT** 📊\n\n"
+                                    f"📌 **Beitrag:** {p_info['title']}\n"
+                                    f"🌐 **Plattform:** {p_info['platform']} | {format_emoji} **Format:** {p_info['format']}\n"
+                                    f"----------------------------------------\n"
+                                    f"👀 **Aufrufe (Views):** {p_info['views']:,}\n"
+                                    f"❤️ **Gefällt mir (Likes):** {p_info['likes']:,}\n"
+                                    f"💬 **Kommentare:** {p_info.get('comments', 0):,}\n"
+                                    f"🔗 **Teilungen (Shares):** {p_info.get('shares', 0):,}\n"
+                                    f"🎯 **Interaktionsrate:** {er_single:.2f}%\n\n"
+                                    f"📈 *Statistiken wurden live über das Creator Dashboard exportiert!*"
+                                )
+                                success, resp = utils.send_discord_webhook(hook_data["url"], text_content=discord_msg)
+                                if success: st.success("Gesendet!")
+                        with c_edit:
+                            if st.button("✏️", key=f"edt_{p_id}", use_container_width=True, help="Daten bearbeiten"):
+                                st.session_state[edit_state_key] = True
+                                st.rerun()
+                        with c_del:
+                            if st.button("🗑️", key=f"del_{p_id}", use_container_width=True, help="Eintrag löschen"):
+                                del stats_data[p_id]
+                                utils.save_data(f"stats_{current_user}", stats_data)
+                                st.rerun()
+                    else:
+                        st.caption("ℹ️ Richte Webhooks ein, um diese Reports nach Discord zu senden.")
