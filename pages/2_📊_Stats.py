@@ -1,4 +1,7 @@
 import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+from datetime import datetime
 import utils
 
 # ==============================================================================
@@ -16,7 +19,7 @@ st.markdown(f"""
     .stApp {{ background-color: {BG_DEEP_NAVY} !important; }}
     h1, h2, h3 {{ font-family: 'Outfit', sans-serif !important; font-weight: 700 !important; color: #FFFFFF !important; }}
     
-    /* Custom Bento-Kacheln für die Metriken */
+    /* Custom Bento-Kacheln */
     div[data-testid="stExpander"], .stAlert, .metric-box {{ 
         background-color: rgba(30, 41, 59, 0.4) !important; 
         border-radius: 16px !important; 
@@ -28,64 +31,153 @@ st.markdown(f"""
     .stButton>button {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; color: white !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; font-family: 'Outfit', sans-serif !important; }}
     .stButton>button:hover {{ border-color: {PRIMARY_BLUE} !important; box-shadow: 0 0 15px rgba(56, 189, 248, 0.3) !important; }}
     .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important; border: none !important; }}
-    .stTextInput>div>div, .stSelectbox>div>div {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: {TEXT_SLATE} !important; }}
+    .stTextInput>div>div, .stSelectbox>div>div, .stNumberInput>div>div {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: {TEXT_SLATE} !important; }}
+    
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {{ gap: 10px !important; }}
+    .stTabs [data-baseweb="tab"] {{ background-color: rgba(30, 41, 59, 0.5) !important; border-radius: 8px 8px 0 0 !important; padding: 10px 20px !important; color: #94A3B8 !important; }}
+    .stTabs [aria-selected="true"] {{ background-color: {PRIMARY_BLUE} !important; color: {BG_DEEP_NAVY} !important; font-weight: 600 !important; }}
 </style>
 """, unsafe_allow_html=True)
 
 current_user = utils.check_login()
 
 st.title("📊 Performance & Analytics Hub")
-st.markdown("Behalte deine Reichweite im Blick und verwalte deine API-Schnittstellen.")
+st.markdown("Analysiere dein Wachstum schrittweise über automatische APIs oder manuelle Einträge.")
 st.markdown("---")
 
-# Zwei-Spalten Bento-Layout (Links die Auswertung, rechts die Einstellungen)
-col_stats, col_api = st.columns([1.6, 1])
+# Aufteilung in Tabs, damit die Seite nicht überladen wirkt
+tab_live, tab_manual, tab_charts, tab_api = st.tabs([
+    "📈 Live-Kanalstatus", 
+    "✍️ Daten manuell eintragen", 
+    "📊 Diagramme & Analyse", 
+    "🔑 API-Einstellungen"
+])
 
-with col_stats:
-    st.markdown("### 📈 Live-Kanaldaten")
-    
-    # YouTube-Statistiken über die utils-Schnittstelle laden
+# ==============================================================================
+# TAB 1: LIVE KANALSTATUS
+# ==============================================================================
+with tab_live:
+    st.markdown("### 🎥 Echtzeit-API-Abfrage")
     try:
         stats, error = utils.fetch_youtube_stats(current_user)
     except Exception:
         stats, error = None, "Fehler beim Laden des Statistik-Moduls."
 
     if stats:
-        st.markdown("#### 🎥 YouTube Realtime-Metriken")
-        
-        # Side-by-Side Kacheln für die einzelnen Werte
         m1, m2, m3 = st.columns(3)
         with m1:
-            st.markdown(f"""
-            <div class="metric-box">
-                <p style="color: #94A3B8; margin: 0; font-size: 14px;">👥 Abonnenten</p>
-                <p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 26px; font-weight: 700;">{stats.get('subscribers', 0):,}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-box"><p style="color: #94A3B8; margin: 0; font-size: 14px;">👥 Abonnenten</p><p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 26px; font-weight: 700;">{stats.get("subscribers", 0):,}</p></div>', unsafe_allow_html=True)
         with m2:
-            st.markdown(f"""
-            <div class="metric-box">
-                <p style="color: #94A3B8; margin: 0; font-size: 14px;">👁️ Gesamt-Aufrufe</p>
-                <p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 26px; font-weight: 700;">{stats.get('views', 0):,}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-box"><p style="color: #94A3B8; margin: 0; font-size: 14px;">👁️ Gesamt-Aufrufe</p><p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 26px; font-weight: 700;">{stats.get("views", 0):,}</p></div>', unsafe_allow_html=True)
         with m3:
-            st.markdown(f"""
-            <div class="metric-box">
-                <p style="color: #94A3B8; margin: 0; font-size: 14px;">🎬 Videos online</p>
-                <p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 26px; font-weight: 700;">{stats.get('videos', 0):,}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-box"><p style="color: #94A3B8; margin: 0; font-size: 14px;">🎬 Videos online</p><p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 26px; font-weight: 700;">{stats.get("videos", 0):,}</p></div>', unsafe_allow_html=True)
+    else:
+        st.info(error if error else "ℹ️ Bisher sind keine Live-Daten verfügbar. Nutze den letzten Tab, um deine API zu verbinden.")
+
+# ==============================================================================
+# TAB 2: DATEN MANUELL EINTRAGEN
+# ==============================================================================
+with tab_manual:
+    st.markdown("### ✍️ Statistik manuell erfassen")
+    st.markdown("Perfekt, um plattformübergreifend Meilensteine festzuhalten.")
+    
+    with st.form("manual_stats_form", clear_on_submit=True):
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            m_plattform = st.selectbox("Plattform", ["Twitch", "YouTube", "Kick", "Instagram", "TikTok", "X"])
+            m_followers = st.number_input("Follower / Abonnenten Anzahl", min_value=0, step=1)
+        with col_m2:
+            m_date = st.text_input("Zeitpunkt / Monat", placeholder=datetime.now().strftime("%B %Y"))
+            m_views = st.number_input("Monatliche Aufrufe / Views (optional)", min_value=0, step=1)
             
         st.markdown("<br>", unsafe_allow_html=True)
-        st.success("🎯 Live-Daten erfolgreich synchronisiert!")
-    else:
-        # Schicke Info-Box, falls noch keine API eingerichtet ist
-        st.info(error if error else "ℹ️ Bisher sind keine Live-Daten verfügbar. Verknüpfe rechts deinen Kanal, um die Automatisierung zu starten.")
+        if st.form_submit_button("💾 Datenpunkt sichern", type="primary", use_container_width=True):
+            if m_date:
+                manual_data = utils.load_data("manual_stats", list)
+                new_entry = {
+                    "id": str(datetime.now().timestamp()),
+                    "plattform": m_plattform,
+                    "followers": m_followers,
+                    "views": m_views,
+                    "zeitpunkt": m_date
+                }
+                manual_data.append(new_entry)
+                utils.save_data("manual_stats", manual_data)
+                st.success(f"✅ Eintrag für {m_plattform} ({m_date}) erfolgreich in der Cloud gespeichert!")
+                st.rerun()
+            else:
+                st.error("⚠️ Bitte gib einen Zeitpunkt oder Monat an!")
 
-with col_api:
-    st.markdown("### 🔑 API-Schnittstellen")
+# ==============================================================================
+# TAB 3: DIAGRAMME & ANALYSE
+# ==============================================================================
+with tab_charts:
+    st.markdown("### 📊 Visuelle Auswertung")
     
+    manual_data = utils.load_data("manual_stats", list)
+    
+    if not manual_data:
+        st.info("ℹ️ Noch keine manuellen Datenpunkte vorhanden. Trage im vorherigen Reiter Daten ein, um Diagramme zu generieren.")
+    else:
+        df = pd.DataFrame(manual_data)
+        
+        # Datentabelle im Expander versteckt halten für maximale Übersicht
+        with st.expander("📋 Rohdaten anzeigen / Einträge löschen"):
+            for entry in manual_data:
+                c_info, c_del = st.columns([4, 1])
+                c_info.markdown(f"**{entry['plattform']}** ({entry['zeitpunkt']}): `{entry['followers']:,}` Follower | `{entry['views']:,}` Views")
+                if c_del.button("🗑️", key=f"del_stat_{entry['id']}"):
+                    manual_data = [e for e in manual_data if e['id'] != entry['id']]
+                    utils.save_data("manual_stats", manual_data)
+                    st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Letzte Einträge pro Plattform für die Diagramme filtern
+        df_latest = df.sort_values("id").groupby("plattform").last().reset_index()
+        
+        col_chart1, col_chart2 = st.columns(2)
+        
+        with col_chart1:
+            st.markdown("#### 📐 Verteilung nach Plattform (Balkendiagramm)")
+            # Streamlit-natives, perfekt gestyltes Balkendiagramm
+            chart_df = df_latest.set_index("plattform")[["followers"]]
+            st.bar_chart(chart_df, color="#38BDF8")
+            
+        with col_chart2:
+            st.markdown("#### 🍕 Community-Anteile (Kreisdiagramm)")
+            
+            # Matplotlib Kreisdiagramm im Dark-Mode Style
+            fig, ax = plt.subplots(figsize=(6, 4.5))
+            fig.patch.set_facecolor('#0F172A')
+            ax.set_facecolor('#0F172A')
+            
+            # Farben für die Torte definieren
+            colors = ['#38BDF8', '#818CF8', '#A78BFA', '#F472B6', '#FBBF24', '#34D399']
+            
+            wedges, texts, autotexts = ax.pie(
+                df_latest["followers"], 
+                labels=df_latest["plattform"], 
+                autopct='%1.1f%%',
+                startangle=140,
+                colors=colors[:len(df_latest)],
+                textprops=dict(color="#F8FAFC")
+            )
+            
+            # Textfarbe der Prozentwerte anpassen
+            for autotext in autotexts:
+                autotext.set_color('#0F172A')
+                autotext.set_weight('bold')
+                
+            ax.axis('equal')  
+            st.pyplot(fig)
+
+# ==============================================================================
+# TAB 4: API-EINSTELLUNGEN
+# ==============================================================================
+with tab_api:
+    st.markdown("### 🔑 API-Schnittstellen verwalten")
     with st.form("api_credentials_form", clear_on_submit=False):
         plattform = st.selectbox("Plattform wählen", ["YouTube"])
         channel_id = st.text_input("Kanal-ID (Channel ID)", placeholder="UC...", help="Deine eindeutige YouTube-Kanal-ID")
@@ -111,4 +203,3 @@ with col_api:
                     st.error(f"Datenbankfehler: {e}")
             else:
                 st.error("⚠️ Bitte fülle alle Felder aus!")
-
