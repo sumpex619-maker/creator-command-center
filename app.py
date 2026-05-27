@@ -1,115 +1,125 @@
 import streamlit as st
 import utils
 
-st.set_page_config(page_title="Creator Command Center", layout="wide")
-
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-if "username" not in st.session_state:
-    st.session_state["username"] = ""
+# ==============================================================================
+# PAGE CONFIGURATION (Muss immer ganz oben stehen!)
+# ==============================================================================
+st.set_page_config(
+    page_title="Creator Command Center", 
+    page_icon="🎬", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # ==============================================================================
-# LOGIN-PRÜFUNG
+# 2026 MODERN UI ENGINE (Midnight Navy & Sky Blue)
 # ==============================================================================
-if not st.session_state["logged_in"]:
-    st.title("🔒 Creator Command Center")
-    st.write("Bitte melde dich an oder erstelle einen neuen Account.")
-    
-    col_login, _ = st.columns([1, 2])
-    with col_login:
-        tab_login, tab_register = st.tabs(["🔑 Anmelden", "📝 Registrieren"])
-        
-        conn = utils.get_db_connection()
-        cursor = conn.cursor()
-        
-        with tab_login:
-            user_login = st.text_input("Benutzername", key="login_user")
-            pwd_login = st.text_input("Passwort", type="password", key="login_pwd")
-            if st.button("Einloggen", type="primary", use_container_width=True):
-                cursor.execute("SELECT password FROM users WHERE username = %s", (user_login,))
-                row = cursor.fetchone()
-                
-                if row and row["password"] == utils.hash_password(pwd_login):
-                    st.session_state["logged_in"] = True
-                    st.session_state["username"] = user_login
-                    st.rerun()
-                else:
-                    st.error("❌ Benutzername oder Passwort falsch.")
-                    
-        with tab_register:
-            user_reg = st.text_input("Wunsch-Benutzername", key="reg_user")
-            pwd_reg = st.text_input("Passwort wählen", type="password", key="reg_pwd")
-            if st.button("Account erstellen", use_container_width=True):
-                if user_reg and pwd_reg:
-                    cursor.execute("SELECT username FROM users WHERE username = %s", (user_reg,))
-                    if cursor.fetchone():
-                        st.error("❌ Dieser Benutzername ist leider schon vergeben.")
-                    else:
-                        hashed_pwd = utils.hash_password(pwd_reg)
-                        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (user_reg, hashed_pwd))
-                        conn.commit()
-                        st.success("✅ Account erfolgreich erstellt! Du kannst dich jetzt einloggen.")
-                else:
-                    st.warning("⚠️ Bitte fülle alle Felder aus.")
-                    
-        cursor.close()
-        conn.close()
-    
-    st.stop()  # Zwingt Streamlit hier anzuhalten, wenn der User nicht eingeloggt ist!
+PRIMARY_BLUE = "#38BDF8"
+BG_DEEP_NAVY = "#0F172A"
+SIDEBAR_NAVY = "#1E293B"
+TEXT_SLATE = "#F8FAFC"
 
-# ==============================================================================
-# AB HIER: BEREICH FÜR EINGELOGGTE NUTZER (Kein Einrücken nötig!)
-# ==============================================================================
-current_user = st.session_state["username"]
-
-# --------------------------------------------------------------------------
-# DESIGN & CUSTOM STYLING (Theme-Engine)
-# --------------------------------------------------------------------------
-user_settings = utils.load_user_settings(current_user)
-theme_choice = user_settings.get("theme", "Dark")
-accent_choice = user_settings.get("accent", "Karibik Türkis")
-
-active_color_hex = utils.THEME_COLORS.get(accent_choice, "#46A5B8")
-
-if theme_choice == "Dark":
-    bg_color = "#121212"
-    sidebar_bg = "#1E1E1E"
-    text_color = "#FFFFFF"
-else:
-    bg_color = "#FFFFFF"
-    sidebar_bg = "#F4F6F7"
-    text_color = "#111111"
-    
 st.markdown(f"""
 <style>
-    .stApp {{ background-color: {bg_color} !important; color: {text_color} !important; }}
-    [data-testid="stSidebar"] {{ background-color: {sidebar_bg} !important; }}
-    h1, h2, h3, h4, h5, h6, label, li, div[data-testid="stMarkdownContainer"] {{ color: {text_color} !important; }}
-    .stButton>button[kind="primary"] {{ background-color: {active_color_hex} !important; border: 1px solid {active_color_hex} !important; color: #FFFFFF !important; }}
+    /* 1. Google Fonts laden */
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Inter:wght@400;600&display=swap');
+
+    /* 2. Globales Styling */
+    html, body, [class*="css"], .stMarkdown {{
+        font-family: 'Inter', sans-serif !important;
+        color: {TEXT_SLATE} !important;
+    }}
+
+    /* Haupt-Hintergrund */
+    .stApp {{ 
+        background-color: {BG_DEEP_NAVY} !important; 
+    }}
+
+    /* Überschriften in moderner Outfit-Schrift */
+    h1, h2, h3 {{
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.5px !important;
+        color: #FFFFFF !important;
+    }}
+
+    /* 3. Sidebar (Linke Navigation) */
+    [data-testid="stSidebar"] {{
+        background-color: {SIDEBAR_NAVY} !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }}
+
+    /* 4. Interaktive Buttons */
+    .stButton>button {{
+        border-radius: 10px !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background-color: {SIDEBAR_NAVY} !important;
+        color: white !important;
+        padding: 10px 24px !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        font-family: 'Outfit', sans-serif !important;
+    }}
+
+    .stButton>button:hover {{
+        border-color: {PRIMARY_BLUE} !important;
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.4) !important;
+        transform: translateY(-2px) !important;
+    }}
+
+    /* Primär-Button (Das leuchtende Blau) */
+    .stButton>button[kind="primary"] {{
+        background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important;
+        border: none !important;
+        color: white !important;
+    }}
+
+    /* 5. Boxen & Kacheln (Bento-Look) */
+    div[data-testid="stExpander"] {{
+        background-color: rgba(30, 41, 59, 0.5) !important;
+        border-radius: 16px !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        margin-bottom: 20px !important;
+    }}
+
+    /* 6. Formular-Felder & Tabs abrunden */
+    .stTabs [data-baseweb="tab-list"] {{ gap: 10px !important; background-color: transparent !important; }}
+    .stTabs [data-baseweb="tab"] {{ background-color: {SIDEBAR_NAVY} !important; border-radius: 8px 8px 0 0 !important; color: #94A3B8 !important; padding: 10px 20px !important; }}
+    .stTabs [aria-selected="true"] {{ background-color: {PRIMARY_BLUE} !important; color: {BG_DEEP_NAVY} !important; font-weight: 700 !important; }}
+
+    .stDataFrame, .stTextInput>div>div, .stNumberInput>div>div, .stSelectbox>div>div, .stTextArea>div>div {{
+        border-radius: 10px !important;
+        background-color: {SIDEBAR_NAVY} !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: {TEXT_SLATE} !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
-# --------------------------------------------------------------------------
-# STARTSEITE & ANLEITUNG
-# --------------------------------------------------------------------------
-st.title("🎬 Creator Command Center")
-st.markdown(f"**Eingeloggt als:** `{current_user}`")
+# ==============================================================================
+# LOGIN / SESSION CHECK
+# ==============================================================================
+current_user = utils.check_login()
 
-with st.expander("📖 Kurzanleitung: So nutzt du das Tool", expanded=True):
-    st.markdown(f"""
-    Willkommen in deiner Kommandozentrale! Hier sind die ersten Schritte:
+# ==============================================================================
+# STARTSEITE / DASHBOARD
+# ==============================================================================
+st.title("🎬 Creator Command Center")
+st.markdown(f"**Status:** `System Online` | **Eingeloggt als:** `{current_user}`")
+
+st.markdown("---")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("### 🚀 Willkommen im Hub!")
+    st.markdown("Egal ob du deinen nächsten Rennplan strukturierst, das Community-Engagement checkst oder ein neues YouTube-Video konzipierst – hier läuft alles zentral zusammen.")
     
-    1. **Discord-Webhooks:** Gehe in der Seitenleiste auf `📢_Discord_Webhooks` und lege dort dein erstes Webhook-Profil an (URL aus den Discord-Kanaleinstellungen kopieren).
-    
-    2. **Sendeplan:** Unter `📅_Sendeplan` kannst du deine Woche strukturieren und deine Community per Mausklick automatisch über Discord informieren.
-    
-    3. **Stats-Tracking:** Nutze das Tool `📊_Stats`, um deine Social-Media-Zahlen manuell zu loggen oder vollautomatisch per YouTube-Schnittstelle abzurufen.
-       
-       **💡 Anleitung für den automatischen YouTube-Abruf:**
-       * **YouTube Channel ID (Kanal-ID):** Logge dich bei YouTube ein und rufe deine erweiterten Kontoeinstellungen unter [youtube.com/account_advanced](https://www.youtube.com/account_advanced) auf. Kopiere dort die ID, die mit **"UC..."** beginnt.
-       * **YouTube API Key (API-Schlüssel):** Melde dich in der kostenlosen [Google Cloud Console](https://console.cloud.google.com/) an, erstelle ein neues Projekt, suche nach **"YouTube Data API v3"** und aktiviere diese. Unter *Anmeldedaten -> Anmeldedaten erstellen -> API-Schlüssel* erhältst du deinen persönlichen Key.
-    
-    4. **Ideen:** Unter `📝_Ideen_und_ToDos` verlierst du nie wieder einen kreativen Geistesblitz oder ein wichtiges ToDo.
-    
-    *Tipp: Du kannst links über die Seitenleiste jederzeit flexibel zwischen allen Funktionen wechseln.*
-    """)
+with col2:
+    with st.expander("📖 Übersicht: Deine Werkzeuge", expanded=True):
+        st.markdown("""
+        * **📊 Stats:** Pflege deine Views und dein Community-Health-Board (Side-by-Side).
+        * **📝 Ideen:** Nutze die SEO-Werkstatt für bessere Such-Rankings.
+        * **💼 Business:** Hake deinen Setup-Fortschritt ab und verwalte deine Partner-Links.
+        """)
+
+st.success("✨ Das 2026 Midnight-Theme ist aktiv. Wähle links in der Seitenleiste ein Werkzeug aus!")

@@ -8,166 +8,122 @@ import utils
 current_user = utils.check_login()
 
 st.title("💼 Creator Business Hub")
-st.markdown("Vom Hobby zum Business. Hier findest du deinen roten Faden für Steuern, Rechtliches und dein professionelles Setup.")
+st.markdown("Dein roter Faden vom Hobby-Streamer zum professionellen Creator-Setup.")
 
-# Tabs im modernen 2026er Clean-Style
-tab_fahrplan, tab_wissen, tab_links = st.tabs([
-    "🗺️ Der Rote Faden (Checkliste)",
-    "📖 Business-Wissen kompakt",
-    "🔗 Meine Affiliate- & Partner-Links"
-])
+t_fahrplan, t_wissen, t_links = st.tabs(["🗺️ Roadmap Checkliste", "📖 Business-Wissen", "🔗 Partner-Links"])
 
 # ------------------------------------------------------------------------------
-# TAB 1: DER ROTE FADEN (INTERAKTIVE CHECKLISTE)
+# TAB 1: ROADMAP (CHECKLISTE)
 # ------------------------------------------------------------------------------
-with tab_fahrplan:
+with t_fahrplan:
     st.subheader("🚀 Deine Business-Roadmap")
-    st.markdown("Hake die Schritte ab, sobald du sie erledigt hast. Dein Dashboard merkt sich deinen Fortschritt!")
-
-    # Fortschritt aus der Datenbank laden
+    st.markdown("Hake ab, was du erledigt hast. Das Tool speichert deinen Fortschritt.")
+    
     progress = utils.load_data("business_progress", dict)
     
-    # Standardwerte, falls die DB noch leer ist
     steps = {
-        "step_1": "Hobby vs. Gewerbe geprüft (Wann muss ich zum Amt?)",
-        "step_2": "Gewerbe angemeldet (Kleinunternehmer-Regelung gewählt)",
-        "step_3": "Rechtssicheres Impressum für Social Media erstellt",
-        "step_4": "Professionelle Business-E-Mail-Adresse eingerichtet",
-        "step_5": "Eigene 'Link-in-Bio'-Seite aufgesetzt",
-        "step_6": "Erstes kleines Media-Kit (Zahlen & Fakten) vorbereitet"
+        "step_1": "Hobby vs. Gewerbe geprüft (Pflicht bei Monetarisierung!)",
+        "step_2": "Gewerbe angemeldet (Tipp: Kleinunternehmer-Regelung)",
+        "step_3": "Rechtssicheres Impressum eingerichtet",
+        "step_4": "Professionelle Business-E-Mail (@deinedomain.de) angelegt",
+        "step_5": "Datenschutzkonforme Link-in-Bio Seite erstellt"
     }
     
-    # Sicherstellen, dass alle Keys existieren
-    for key in steps.keys():
-        if key not in progress:
-            progress[key] = False
-
-    # Checkboxen anzeigen
-    checked_count = 0
-    st.markdown("---")
+    for k, v in steps.items():
+        if k not in progress: 
+            progress[k] = False
+            
+    # Modulares Side-by-Side Design für die Checkliste vs. Fortschrittsbalken
+    col_checks, col_score = st.columns([2, 1])
     
-    # Wir speichern die Änderungen direkt ab
-    for key, text in steps.items():
-        # Falls abgehakt, zählen wir es für den Fortschrittsbalken
-        current_state = st.checkbox(text, value=progress[key], key=f"cb_{key}")
-        if current_state:
-            checked_count += 1
-        if current_state != progress[key]:
-            progress[key] = current_state
-            utils.save_data("business_progress", progress)
-            st.rerun()
-
-    st.markdown("---")
-    # Fortschrittsbalken berechnen
-    prozent = int((checked_count / len(steps)) * 100)
-    st.markdown(f"**Gesamtfortschritt: {prozent}%**")
-    st.progress(prozent / 100)
-    
-    if prozent == 100:
-        st.balloons()
-        st.success("🎉 Wahnsinn! Du hast dein Creator-Business komplett professionell aufgestellt!")
+    with col_checks:
+        for k, v in steps.items():
+            new_val = st.checkbox(v, value=progress[k], key=f"check_{k}")
+            if new_val != progress[k]:
+                progress[k] = new_val
+                utils.save_data("business_progress", progress)
+                st.rerun()
+                
+    with col_score:
+        score = sum(progress.values())
+        prozent = int(score / len(steps) * 100)
+        st.markdown("### 📊 Status")
+        st.progress(prozent / 100)
+        st.markdown(f"**Fertiggestellt: {prozent}%**")
+        if prozent == 100:
+            st.success("🎉 Komplettes Setup abgeschlossen!")
 
 # ------------------------------------------------------------------------------
-# TAB 2: BUSINESS-WISSEN KOMPAKT
+# TAB 2: BUSINESS WISSEN
 # ------------------------------------------------------------------------------
-with tab_wissen:
-    st.subheader("📚 Versteckte Hürden einfach erklärt")
-    st.markdown("Keine Angst vor Bürokratie. Hier ist das Wichtigste, was du wissen musst:")
-
-    with st.expander("⚖️ 1. Wann muss ich ein Gewerbe anmelden? (Deutschland/DACH)"):
+with t_wissen:
+    st.subheader("📚 Experten-Tipps kompakt")
+    
+    # Kacheln im modernen Look
+    with st.expander("⚖️ 1. Wann muss ich ein Gewerbe anmelden?"):
         st.markdown("""
-        **Der größte Mythos:** *"Ich muss erst ein Gewerbe anmelden, wenn ich soundsoviel Euro verdiene."* **Das ist falsch!**
-        
-        In Deutschland gilt: Sobald eine **Gewinnerzielungsabsicht** vorliegt, musst du ein Gewerbe anmelden. 
-        * **Hobby:** Du streamst nur zum Spaß und hast alle Einnahmen-Funktionen (Subs, Bits, Werbung, Spenden) deaktiviert.
-        * **Gewerbe:** Sobald du den "Affiliate-Status" bei Twitch annimmst, YouTube-Monetarisierung einschaltest oder Spenden-Buttons platzierst, *beabsichtigst* du, Geld zu verdienen. Das kostet beim Gewerbeamt deiner Stadt ca. 15–40 € und dauert 10 Minuten.
-        
-        **Tipp für Anfänger:** Nutze bei der steuerlichen Erfassung das Feld **Kleinunternehmerregelung (§ 19 UStG)**. Damit musst du keine Umsatzsteuer auf deinen Rechnungen ausweisen und hast viel weniger Papierkram (gilt aktuell bis zu einer Umsatzgrenze von 25.000 € im Jahr).
+        Sobald eine **Gewinnerzielungsabsicht** vorliegt, musst du ein Gewerbe anmelden. 
+        Sobald du z.B. den Affiliate-Status bei Twitch annimmst oder YouTube-Monetarisierung einschaltest, *beabsichtigst* du, Geld zu verdienen. Das kostet beim Gewerbeamt deiner Stadt ca. 15–40 € und dauert 10 Minuten. Nutze als Anfänger die **Kleinunternehmerregelung**.
         """)
-
+        
     with st.expander("📧 2. Die professionelle Business-Mail"):
         st.markdown("""
-        Wenn eine Marke dich für ein Sponsoring anschreiben will, sucht sie im Impressum nach einer Mail. Eine Adresse wie *gamer_creative99@gmail.com* wirkt unprofessionell.
-        
-        **Der bessere Weg:**
-        1. Sichere dir eine eigene Domain (z.B. `deincreatorname.de`) bei Anbietern wie Strato, Ionos oder Nitrado (kostet oft nur 1–2 € im Monat).
-        2. Richte dir dort eine Mailadresse ein, wie z.B. `kontakt@deincreatorname.de` oder `business@deincreatorname.de`.
-        3. Das erhöht deine Chancen auf Zusagen von Marken drastisch, weil es zeigt: *Ich meine das ernst.*
+        Sichere dir eine eigene Domain (z.B. `deincreatorname.de`) bei Anbietern wie Strato oder Ionos. Richte dir dort eine Mailadresse ein, wie z.B. `business@deincreatorname.de`. Das erhöht deine Chancen auf Zusagen von Marken drastisch!
         """)
 
-    with st.expander("🔗 3. Die 'Link-in-Bio'-Falle (Social Media bündeln)"):
+    with st.expander("🔗 3. Die 'Link-in-Bio'-Falle"):
         st.markdown("""
-        Instagram, TikTok und YouTube erlauben oft nur *einen einzigen Link* in deiner Profilbeschreibung. Du willst dort aber Twitch, YouTube, Discord und deinen Merch zeigen.
-        
-        * **Bekannte Tools:** Linktree, Bento.me, Beacons.
-        * **⚠️ Achtung Abmahngefahr:** Viele dieser Tools (besonders aus den USA) sind in Deutschland wegen der DSGVO (Datenschutz) in einer rechtlichen Grauzone, wenn sie Tracker nutzen.
-        * **Die 2026-Lösung:** Am sichersten fährst du, wenn du dir über eine eigene kleine Website (oder direkt über dieses Dashboard-System in Zukunft) eine eigene, cleane Link-Seite baust, die komplett datenschutzkonform ist.
-        """)
-
-    with st.expander("📝 4. Die Impressumspflicht (Vorsicht vor Abmahnungen!)"):
-        st.markdown("""
-        Sobald du Social-Media-Kanäle "geschäftsmäßig" betreibst (und das tust du, sobald du Geld verdienen *könntest* oder regelmäßig streamst), brauchst du ein **Impressum**.
-        
-        Das Impressum muss leicht erkennbar und unmittelbar erreichbar sein (maximal 2 Klicks). 
-        * **Inhalt:** Dein echter Name, eine ladungsfähige Anschrift (kein reines Postfach!) und eine schnelle Kontaktmöglichkeit (Mail + Telefonnummer).
-        * **Tipp für Privatsphäre:** Wenn du deine private Wohnadresse nicht im Internet stehen haben willst, gibt es sogenannte **Impressums-Services** für Creator (z.B. von *Gewerbequadrat* oder *Anwaltskanzleien*). Gegen eine kleine Gebühr stellen sie dir eine rechtssichere Adresse zur Verfügung und leiten Post an dich weiter.
+        Viele US-Tools wie Linktree sind in Deutschland wegen der DSGVO datenschutzrechtlich schwierig. Am sichersten ist eine eigene, kleine, cleane Website für deine Links.
         """)
 
 # ------------------------------------------------------------------------------
-# TAB 3: AFFILIATE- & PARTNER-LINKS
+# TAB 3: PARTNER-LINKS
 # ------------------------------------------------------------------------------
-with tab_links:
-    st.subheader("🔗 Deine Affiliate- & Partner-Links verwalten")
-    st.markdown("Speichere hier deine Empfehlungslinks (z.B. Amazon-Equipment, Instant Gaming, etc.), um sie beim Posten immer sofort griffbereit zu haben.")
-
-    # Formular zum Hinzufügen eines Links
+with t_links:
+    st.subheader("🔗 Affiliate- & Partner-Links verwalten")
+    
     with st.form("add_link_form", clear_on_submit=True):
-        col_l1, col_l2 = st.columns(2)
-        with col_l1:
-            partner_name = st.text_input("Name des Partners / Produkts", placeholder="z.B. Mein Lenkrad (Amazon)")
-            partner_url = st.text_input("Dein Affiliate-Link", placeholder="https://amzn.to/...")
-        with col_l2:
-            rabatt_code = st.text_input("Rabatt-Code (falls vorhanden)", placeholder="z.B. CREATOR10")
-            kategorie = st.selectbox("Kategorie", ["Setup / Hardware", "Spiele / Keys", "Merch", "Sonstiges"])
+        # Side-by-Side Eingabe
+        c1, c2 = st.columns(2)
+        with c1:
+            name = st.text_input("Name des Partners / Produkts", placeholder="z.B. Mein Mikrofon")
+            kategorie = st.selectbox("Kategorie", ["Hardware", "Games", "Merch", "Sonstiges"])
+        with c2:
+            url = st.text_input("Dein Affiliate-Link", placeholder="https://...")
+            code = st.text_input("Rabatt-Code (falls vorhanden)", placeholder="z.B. CREATOR10")
             
         if st.form_submit_button("💾 Link speichern", type="primary", use_container_width=True):
-            if not partner_name or not partner_url:
-                st.error("Bitte Name und Link ausfüllen!")
-            else:
-                new_link = {
-                    "name": partner_name,
-                    "url": partner_url,
-                    "code": rabatt_code,
-                    "kategorie": kategorie
-                }
-                current_links = utils.load_data("affiliate_links", list)
-                current_links.append(new_link)
-                utils.save_data("affiliate_links", current_links)
-                st.success(f"Link für '{partner_name}' gespeichert!")
+            if name and url:
+                links = utils.load_data("affiliate_links", list)
+                links.append({"name": name, "url": url, "kategorie": kategorie, "code": code})
+                utils.save_data("affiliate_links", links)
+                st.success("✅ Partner-Link gespeichert!")
                 st.rerun()
-
+            else:
+                st.error("Bitte Partner-Name und Link ausfüllen.")
+    
     st.markdown("---")
     
-    # Gespeicherte Links anzeigen
-    saved_links = utils.load_data("affiliate_links", list)
-    if not saved_links:
+    links = utils.load_data("affiliate_links", list)
+    if not links:
         st.info("Noch keine Partner-Links hinterlegt.")
     else:
-        # In Pandas DataFrame umwandeln für ein schickes Design
-        df_links = pd.DataFrame(saved_links)
-        
-        # Schöne Anzeige pro Kategorie
+        df_links = pd.DataFrame(links)
+        # Sortieren nach Kategorie
         for kat, sub_df in df_links.groupby("kategorie"):
-            st.markdown(f"### 📁 {kat}")
+            st.markdown(f"#### 📁 {kat}")
             for _, row in sub_df.iterrows():
-                with st.expander(f"🔗 {row['name']}"):
-                    st.markdown(f"**Link:** `{row['url']}`")
-                    if row['code']:
-                        st.markdown(f"**Rabatt-Code:** `{row['code']}`")
-                    
-                    # Kleiner Lösch-Button
-                    if st.button("🗑️ Link löschen", key=f"del_link_{row['name']}"):
-                        saved_links = [l for l in saved_links if l['name'] != row['name']]
-                        utils.save_data("affiliate_links", saved_links)
-                        st.success("Link gelöscht!")
+                # Side-by-Side Darstellung der gespeicherten Links
+                col_view1, col_view2 = st.columns([3, 1])
+                with col_view1:
+                    st.markdown(f"**{row['name']}**")
+                    st.code(row['url'])
+                    if row.get('code'):
+                        st.markdown(f"Code: `{row['code']}`")
+                with col_view2:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    if st.button("🗑️", key=f"del_{row['name']}", use_container_width=True):
+                        links = [l for l in links if l['name'] != row['name']]
+                        utils.save_data("affiliate_links", links)
                         st.rerun()
+                st.divider()

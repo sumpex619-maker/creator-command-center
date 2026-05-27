@@ -9,135 +9,105 @@ import utils
 current_user = utils.check_login()
 
 st.title("📝 Ideen-Schmiede & SEO-Werkstatt")
-st.markdown("Plane deine Inhalte strategisch, optimiere sie für die Social-Media-Suche und behalte deinen kreativen Workflow im Blick.")
+st.markdown("Plane strategisch, optimiere für die Suche und verwalte deinen Content-Workflow im Side-by-Side Design.")
 
-# Zwei Reiter für die Übersichtlichkeit (2026er Clean-Style)
-tab_neu, tab_uebersicht = st.tabs([
-    "💡 Neue Idee & SEO-Planer",
-    "📋 Meine Ideen-Schmiede"
-])
+tab_neu, tab_uebersicht = st.tabs(["💡 Neue Idee & SEO-Planer", "📋 Meine Ideen-Schmiede"])
 
 # ------------------------------------------------------------------------------
-# TAB 1: NEUE IDEE & SEO-PLANER
+# TAB 1: NEUE IDEE
 # ------------------------------------------------------------------------------
 with tab_neu:
-    st.subheader("🚀 Neue Content-Idee strategisch ausarbeiten")
-    
     with st.form("idea_seo_form", clear_on_submit=True):
+        # Konsequentes Side-by-Side Layout
         col_basis, col_seo = st.columns(2)
         
-        # Linke Spalte: Klassische Basis-Infos
         with col_basis:
             st.markdown("### 📋 Basis-Informationen")
-            titel = st.text_input("Arbeitstitel / Rohe Idee", placeholder="z.B. Mein perfektes Racing-Setup 2026")
+            titel = st.text_input("Arbeitstitel", placeholder="z.B. Rennplan Analyse 2026")
             plattform = st.selectbox("Ziel-Plattform", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X"])
             status = st.selectbox("Produktions-Status", ["💡 Idee", "✍️ Skript & Planung", "🎥 Aufnahme & Schnitt", "✅ Veröffentlicht"])
-            notizen = st.text_area("Inhaltliche Notizen / Stichpunkte", placeholder="Worum soll es im Kern gehen? Welche Szenen oder Inhalte planst du?")
+            notizen = st.text_area("Inhaltliche Notizen", height=130, placeholder="Kernpunkte des Videos/Streams...")
             
-        # Rechte Spalte: Die 2026 Social-SEO-Optimierung
         with col_seo:
-            st.markdown("### 🔍 2026 Social-SEO-Optimierung")
-            keyword = st.text_input("🔑 Fokus-Suchbegriff (Keyword)", placeholder="z.B. simracing setup anfänger")
-            seo_titel = st.text_input("🎬 Optimierter Titel (Suchmaschinen-Fit)", placeholder="z.B. SimRacing Setup für Anfänger: 5 Fehler, die du vermeiden musst!")
-            problem = st.text_area("🎯 Welches Problem löst dieses Video für den Zuschauer?", placeholder="z.B. Anfänger wissen oft nicht, welche Force-Feedback-Einstellungen richtig sind und verzweifeln.")
-            hashtags = st.text_input("🏷️ Geplante Tags / Hashtags", placeholder="z.B. #simracing, #gaming, #setup2026")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        submit_btn = st.form_submit_button("💾 Idee & SEO-Konzept speichern", type="primary", use_container_width=True)
+            st.markdown("### 🔍 Social-SEO & Tags")
+            keyword = st.text_input("🔑 Fokus-Keyword", placeholder="z.B. simracing anfänger")
+            seo_titel = st.text_input("🎬 Optimierter Titel", placeholder="z.B. Simracing für Anfänger: Der perfekte Start")
+            problem = st.text_input("🎯 Gelöstes Problem", placeholder="Warum klickt der Zuschauer hierauf?")
+            # Vorbereitung für den kommenden 2026 Hashtag Generator
+            hashtags = st.text_input("🏷️ 2026 Hashtags (Generator in Planung)", placeholder="#racing #streamer #2026")
         
-        if submit_btn:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.form_submit_button("💾 Idee & Konzept speichern", type="primary", use_container_width=True):
             if not titel:
                 st.error("⚠️ Bitte gib zumindest einen Arbeitstitel ein!")
             else:
                 new_idea = {
                     "id": str(datetime.now().timestamp()),
                     "datum": datetime.now().strftime("%Y-%m-%d"),
-                    "titel": titel,
-                    "plattform": plattform,
+                    "titel": titel, 
+                    "plattform": plattform, 
                     "status": status,
-                    "notizen": notizen,
-                    "keyword": keyword,
+                    "notizen": notizen, 
+                    "keyword": keyword, 
                     "seo_titel": seo_titel,
-                    "problem": problem,
+                    "problem": problem, 
                     "hashtags": hashtags
                 }
-                
-                # Daten über utils laden, anhängen und wieder speichern
                 ideas = utils.load_data("ideas", list)
                 ideas.append(new_idea)
                 utils.save_data("ideas", ideas)
-                st.success("✅ Deine Idee wurde erfolgreich SEO-optimiert in der Schmiede hinterlegt!")
+                st.success("✅ Idee erfolgreich in der Schmiede gesichert!")
                 st.rerun()
 
 # ------------------------------------------------------------------------------
-# TAB 2: MEINE IDEEN-SCHMIEDE (ÜBERSICHT & WORKFLOW)
+# TAB 2: ÜBERSICHT
 # ------------------------------------------------------------------------------
 with tab_uebersicht:
-    st.subheader("📋 Deine gespeicherten Ideen & Konzepte")
     ideas = utils.load_data("ideas", list)
-    
     if not ideas:
-        st.info("Noch keine Ideen eingetragen. Nutze den ersten Reiter, um deinen ersten Geistesblitz zu planen!")
+        st.info("Noch keine Ideen vorhanden. Leg los und trage deine erste Idee ein!")
     else:
-        # Dynamische Filter oben drüber im modernen Design
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            filter_plat = st.multiselect("Filtern nach Plattform", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X"], default=[])
-        with col_f2:
-            filter_stat = st.multiselect("Filtern nach Status", ["💡 Idee", "✍️ Skript & Planung", "🎥 Aufnahme & Schnitt", "✅ Veröffentlicht"], default=[])
-            
+        # Side-by-Side Filter
+        f_plat, f_stat = st.columns(2)
+        p_filter = f_plat.multiselect("Filtern nach Plattform", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X"])
+        s_filter = f_stat.multiselect("Filtern nach Status", ["💡 Idee", "✍️ Skript & Planung", "🎥 Aufnahme & Schnitt", "✅ Veröffentlicht"])
+        
         st.markdown("---")
         
-        # Ideen anzeigen (Neueste zuerst)
         for idea in reversed(ideas):
-            # Filter-Logik anwenden
-            if filter_plat and idea.get("plattform") not in filter_plat:
-                continue
-            if filter_stat and idea.get("status") not in filter_stat:
-                continue
+            # Filter anwenden
+            if p_filter and idea.get("plattform") not in p_filter: continue
+            if s_filter and idea.get("status") not in s_filter: continue
+            
+            with st.expander(f"{idea.get('status')} | {idea.get('plattform')} — {idea.get('titel')}"):
+                # Modulare Side-by-Side Ansicht für die Details
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("#### 📋 Inhalt")
+                    st.markdown(f"**Erstellt:** {idea.get('datum')}")
+                    st.write(idea.get("notizen") if idea.get("notizen") else "*Keine Notizen*")
+                with c2:
+                    st.markdown("#### 🔍 SEO & Tags")
+                    st.markdown(f"**Keyword:** `{idea.get('keyword', '-')}`")
+                    st.markdown(f"**SEO-Titel:** *{idea.get('seo_titel', '-')}*")
+                    st.markdown(f"**Problem:** {idea.get('problem', '-')}")
+                    st.markdown(f"**Hashtags:** `{idea.get('hashtags', '-')}`")
                 
-            # Schicke einklappbare Box pro Idee
-            with st.expander(f"{idea.get('status', '💡')} | {idea.get('plattform')} — {idea.get('titel')}"):
-                col_view1, col_view2 = st.columns(2)
+                st.divider()
                 
-                with col_view1:
-                    st.markdown("#### 📋 Details & Inhalt")
-                    st.markdown(f"**📅 Erstellt am:** {idea.get('datum')}")
-                    st.markdown(f"**📝 Inhaltliche Notizen:**")
-                    st.write(idea.get('notizen') if idea.get('notizen') else "*Keine Notizen vorhanden.*")
+                # Side-by-Side Interaktion (Status ändern & Löschen)
+                btn_col1, btn_col2 = st.columns([3, 1])
+                status_list = ["💡 Idee", "✍️ Skript & Planung", "🎥 Aufnahme & Schnitt", "✅ Veröffentlicht"]
+                current_idx = status_list.index(idea.get("status", "💡 Idee")) if idea.get("status") in status_list else 0
+                
+                new_s = btn_col1.selectbox("Status updaten", status_list, index=current_idx, key=f"s_{idea['id']}")
+                if new_s != idea.get("status"):
+                    idea["status"] = new_s
+                    utils.save_data("ideas", ideas)
+                    st.rerun()
                     
-                with col_view2:
-                    st.markdown("#### 🔍 Social SEO-Check")
-                    st.markdown(f"**🔑 Haupt-Keyword:** `{idea.get('keyword') if idea.get('keyword') else 'Nicht definiert'}`")
-                    st.markdown(f"**🎬 SEO-Titel:** *{idea.get('seo_titel') if idea.get('seo_titel') else 'Nicht definiert'}*")
-                    st.markdown(f"**🎯 Gelöstes Problem:** {idea.get('problem') if idea.get('problem') else '*Nicht definiert*'}")
-                    st.markdown(f"**🏷️ Hashtags:** `{idea.get('hashtags') if idea.get('hashtags') else 'Keine'}`")
-                
-                st.markdown("---")
-                
-                # Interaktions-Buttons unten in der Box
-                col_btn1, col_btn2, _ = st.columns([2, 1, 2])
-                with col_btn1:
-                    # Status direkt in der Übersicht updaten
-                    status_liste = ["💡 Idee", "✍️ Skript & Planung", "🎥 Aufnahme & Schnitt", "✅ Veröffentlicht"]
-                    aktueller_index = status_liste.index(idea.get('status', "💡 Idee"))
-                    
-                    neuer_status = st.selectbox(
-                        "Status aktualisieren", 
-                        status_liste, 
-                        index=aktueller_index, 
-                        key=f"status_select_{idea.get('id')}"
-                    )
-                    if neuer_status != idea.get('status'):
-                        idea['status'] = neuer_status
-                        utils.save_data("ideas", ideas)
-                        st.toast(f"Status aktualisiert: {neuer_status}")
-                        st.rerun()
-                        
-                with col_btn2:
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if st.button("🗑️ Löschen", key=f"del_btn_{idea.get('id')}", type="secondary", use_container_width=True):
-                        ideas.remove(idea)
-                        utils.save_data("ideas", ideas)
-                        st.success("Idee gelöscht!")
-                        st.rerun()
+                st.markdown("<br>", unsafe_allow_html=True)
+                if btn_col2.button("🗑️ Löschen", key=f"d_{idea['id']}", type="secondary", use_container_width=True):
+                    ideas.remove(idea)
+                    utils.save_data("ideas", ideas)
+                    st.rerun()
