@@ -1,192 +1,130 @@
 import streamlit as st
 import utils
 
-# ==============================================================================
-# SEITEN-KONFIGURATION
-# ==============================================================================
-st.set_page_config(
-    page_title="Creator Command Center 2026",
-    page_icon="🚀",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Creator Command Center", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
+
+# Session State
+if "logged_in" not in st.session_state: st.session_state["logged_in"] = False
+if "username" not in st.session_state: st.session_state["username"] = ""
+if "theme" not in st.session_state: st.session_state["theme"] = "Midnight (Dark)"
 
 # ==============================================================================
-# GLOBALES 2026 DESIGN SYSTEM (Midnight Navy)
+# DYNAMISCHES DESIGN SYSTEM (Light / Dark Mode)
 # ==============================================================================
-PRIMARY_BLUE = "#38BDF8"
-BG_DEEP_NAVY = "#0F172A"
-SIDEBAR_NAVY = "#1E293B"
-TEXT_SLATE = "#F8FAFC"
+if st.session_state["theme"] == "Midnight (Dark)":
+    BG_COLOR = "#0F172A"
+    SIDEBAR_BG = "#1E293B"
+    CARD_BG = "rgba(30, 41, 59, 0.4)"
+    TEXT_COLOR = "#F8FAFC"
+    BORDER_COLOR = "rgba(255, 255, 255, 0.08)"
+else:
+    BG_COLOR = "#F8FAFC"
+    SIDEBAR_BG = "#F1F5F9"
+    CARD_BG = "#FFFFFF"
+    TEXT_COLOR = "#0F172A"
+    BORDER_COLOR = "rgba(0, 0, 0, 0.1)"
 
 st.markdown(f"""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght=300;400;700&family=Inter:wght=400;600&display=swap');
-    html, body, [class*="css"], .stMarkdown {{ font-family: 'Inter', sans-serif !important; color: {TEXT_SLATE} !important; }}
-    .stApp {{ background-color: {BG_DEEP_NAVY} !important; }}
-    h1, h2, h3 {{ font-family: 'Outfit', sans-serif !important; font-weight: 700 !important; color: #FFFFFF !important; }}
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Inter:wght@400;600&display=swap');
+    html, body, [class*="css"], .stMarkdown {{ font-family: 'Inter', sans-serif !important; color: {TEXT_COLOR} !important; }}
+    .stApp {{ background-color: {BG_COLOR} !important; }}
+    h1, h2, h3, h4 {{ font-family: 'Outfit', sans-serif !important; font-weight: 700 !important; color: {TEXT_COLOR} !important; }}
     
-    /* Bento Box Design */
-    .bento-card {{ 
-        background-color: rgba(30, 41, 59, 0.4) !important; 
-        border-radius: 16px !important; 
-        border: 1px solid rgba(255, 255, 255, 0.08) !important; 
-        padding: 24px !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-        margin-bottom: 16px;
-    }}
+    [data-testid="stSidebar"] {{ background-color: {SIDEBAR_BG} !important; border-right: 1px solid {BORDER_COLOR}; }}
+    .bento-card, div[data-testid="stExpander"] {{ background-color: {CARD_BG} !important; border-radius: 16px !important; border: 1px solid {BORDER_COLOR} !important; padding: 24px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; margin-bottom: 16px; }}
     
-    .stButton>button {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; color: white !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; font-family: 'Outfit', sans-serif !important; }}
-    .stButton>button:hover {{ border-color: {PRIMARY_BLUE} !important; box-shadow: 0 0 15px rgba(56, 189, 248, 0.3) !important; }}
-    .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important; border: none !important; }}
-    .stTextInput>div>div {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: {TEXT_SLATE} !important; }}
-    
-    /* Tabs für Login/Registrierung */
-    .stTabs [data-baseweb="tab-list"] {{ gap: 10px !important; }}
-    .stTabs [data-baseweb="tab"] {{ background-color: rgba(30, 41, 59, 0.5) !important; border-radius: 8px 8px 0 0 !important; padding: 10px 20px !important; color: #94A3B8 !important; }}
-    .stTabs [aria-selected="true"] {{ background-color: {PRIMARY_BLUE} !important; color: {BG_DEEP_NAVY} !important; font-weight: 600 !important; }}
+    .stButton>button {{ border-radius: 10px !important; background-color: {SIDEBAR_BG} !important; color: {TEXT_COLOR} !important; border: 1px solid {BORDER_COLOR} !important; font-family: 'Outfit', sans-serif !important; transition: all 0.2s; }}
+    .stButton>button:hover {{ border-color: #38BDF8 !important; transform: translateY(-2px); }}
+    .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important; border: none !important; color: white !important; }}
+    .stTextInput>div>div, .stSelectbox>div>div, .stTextArea>div>div {{ border-radius: 10px !important; background-color: {SIDEBAR_BG} !important; border: 1px solid {BORDER_COLOR} !important; color: {TEXT_COLOR} !important; }}
 </style>
 """, unsafe_allow_html=True)
 
-# Session State initialisieren
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-if "username" not in st.session_state:
-    st.session_state["username"] = ""
-
 # ==============================================================================
-# AUTHENTIFIZIERUNG (LOGIN / REGISTER)
+# AUTHENTIFIZIERUNG
 # ==============================================================================
 if not st.session_state["logged_in"]:
     st.title("🚀 Creator Command Center")
-    st.markdown("Willkommen im intelligenten Dashboard für Content Creator & Streamer. Bitte logge dich ein oder erstelle ein Konto.")
+    st.markdown("Willkommen! Logge dich ein oder erstelle ein Konto.")
     
-    tab_login, tab_register = st.tabs(["🔒 Einloggen", "📝 Registrieren"])
-    
-    with tab_login:
+    t_login, t_register = st.tabs(["🔒 Einloggen", "📝 Registrieren"])
+    with t_login:
         with st.form("login_form"):
-            username = st.text_input("Benutzername")
-            password = st.text_input("Passwort", type="password")
-            submit = st.form_submit_button("Anmelden", type="primary", use_container_width=True)
-            
-            if submit:
-                if username and password:
-                    hashed_pw = utils.hash_password(password)
-                    try:
-                        conn = utils.get_db_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (username, hashed_pw))
-                        user = cursor.fetchone()
-                        cursor.close()
-                        conn.close()
-                        
-                        if user:
-                            st.session_state["logged_in"] = True
-                            st.session_state["username"] = username
-                            st.success("Erfolgreich eingeloggt!")
-                            st.rerun()
-                        else:
-                            st.error("❌ Falscher Benutzername oder Passwort.")
-                    except Exception as e:
-                        st.error(f"Datenbankfehler: {e}")
-                else:
-                    st.error("⚠️ Bitte alle Felder ausfüllen.")
-                    
-    with tab_register:
-        with st.form("register_form"):
-            new_username = st.text_input("Wunsch-Benutzername")
-            new_password = st.text_input("Sicheres Passwort", type="password")
-            submit_reg = st.form_submit_button("Konto erstellen", use_container_width=True)
-            
-            if submit_reg:
-                if new_username and new_password:
-                    hashed_pw = utils.hash_password(new_password)
-                    try:
-                        conn = utils.get_db_connection()
-                        cursor = conn.cursor()
-                        
-                        # Prüfen ob Nutzer existiert
-                        cursor.execute("SELECT username FROM users WHERE username = %s", (new_username,))
-                        if cursor.fetchone():
-                            st.error("⚠️ Dieser Benutzername ist leider schon vergeben.")
-                        else:
-                            cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (new_username, hashed_pw))
-                            st.success("🎉 Konto erfolgreich erstellt! Du kannst dich jetzt im ersten Reiter einloggen.")
-                        cursor.close()
-                        conn.close()
-                    except Exception as e:
-                        st.error(f"Datenbankfehler: {e}")
-                else:
-                    st.error("⚠️ Bitte alle Felder ausfüllen.")
+            u = st.text_input("Benutzername")
+            p = st.text_input("Passwort", type="password")
+            if st.form_submit_button("Anmelden", type="primary", use_container_width=True):
+                if u and p:
+                    conn = utils.get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (u, utils.hash_password(p)))
+                    if cursor.fetchone():
+                        st.session_state["logged_in"], st.session_state["username"] = True, u
+                        st.rerun()
+                    else: st.error("❌ Falsche Daten.")
+                    cursor.close(); conn.close()
+    with t_register:
+        with st.form("reg_form"):
+            nu, np = st.text_input("Wunsch-Name"), st.text_input("Passwort", type="password")
+            if st.form_submit_button("Konto erstellen", use_container_width=True):
+                if nu and np:
+                    conn = utils.get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT username FROM users WHERE username = %s", (nu,))
+                    if cursor.fetchone(): st.error("⚠️ Vergeben.")
+                    else:
+                        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (nu, utils.hash_password(np)))
+                        st.success("🎉 Erstellt! Bitte links einloggen.")
+                    cursor.close(); conn.close()
     st.stop()
 
 # ==============================================================================
-# DASHBOARD STARTSEITE (WENN EINGELOGGT)
+# DASHBOARD STARTSEITE
 # ==============================================================================
-st.title(f"👋 Willkommen zurück, {st.session_state['username']}!")
-st.markdown("### 🚀 Deine Creator-Kommandozentrale (Edition 2026)")
+# Sidebar Konfiguration
+with st.sidebar:
+    st.markdown(f"### 👤 {st.session_state['username']}")
+    new_theme = st.selectbox("🎨 App Design", ["Midnight (Dark)", "Clean (Light)"], index=0 if st.session_state["theme"] == "Midnight (Dark)" else 1)
+    if new_theme != st.session_state["theme"]:
+        st.session_state["theme"] = new_theme
+        st.rerun()
+    st.markdown("---")
+    if st.button("🚪 Ausloggen", use_container_width=True):
+        st.session_state["logged_in"], st.session_state["username"] = False, ""
+        st.rerun()
+
+st.title(f"👋 Willkommen, {st.session_state['username']}!")
 st.markdown("---")
 
 st.markdown(f"""
 <div class="bento-card">
-    <h3 style="margin-top:0; color: #FFFFFF;">✨ Deine neue 2026er Benutzeroberfläche ist nun bereit!</h3>
-    <p style="color: #94A3B8; font-size: 16px; line-height: 1.6; margin-bottom: 0;">
-        Durch die konsistente Verwendung von modularen Bento-Spalten, modernen Schriftarten und der direkten Cloud-Anbindung an deine Cloud-Datenbank ist dein Tool nun absolut zukunftssicher. Nutze einfach das Menü auf der linken Seite, um schrittweise deine Statistiken, Sendepläne oder Webhooks zu verwalten.
+    <h3 style="margin-top:0;">📖 Wie funktioniert dieses Tool?</h3>
+    <p style="font-size: 16px; line-height: 1.6; margin-bottom: 0;">
+        Dieses Dashboard ist deine zentrale Steuerung. Als Anfänger verliert man schnell den Überblick über Links, Termine und Zahlen. 
+        Hier trägst du alles zusammen. Klicke unten auf die Module, um direkt dorthin zu springen, oder nutze das Menü links. 
+        Wenn du gar nicht weißt, wo du anfangen sollst, schau in die <b>Creator Academy</b>!
     </p>
 </div>
 """, unsafe_allow_html=True)
 
-# Übersicht der Module als Bento-Grid
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown(f"""
-    <div class="bento-card">
-        <h4 style="margin-top:0;">📋 Ideen & ToDos</h4>
-        <p style="color: #94A3B8; font-size: 14px; margin-bottom:0;">Plane deinen Content, halte Geistesblitze fest und organisiere Checklists für deine Streams.</p>
-    </div>
-    """, unsafe_allow_html=True)
+c1, c2, c3 = st.columns(3)
+with c1:
+    st.markdown('<div class="bento-card"><h4>📊 Stats & Analytics</h4><p style="font-size: 14px;">Reichweite und Wachstum tracken.</p></div>', unsafe_allow_html=True)
+    st.page_link("pages/1_📊_Stats.py", label="Stats öffnen", icon="👉")
     
-    st.markdown(f"""
-    <div class="bento-card">
-        <h4 style="margin-top:0;">📅 Sendeplan</h4>
-        <p style="color: #94A3B8; font-size: 14px; margin-bottom:0;">Strukturiere deine Streaming-Woche und verwalte deinen persönlichen Rennkalender.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="bento-card" style="margin-top:20px;"><h4>🗓️ Sendeplan</h4><p style="font-size: 14px;">Plane deine Streams und Events.</p></div>', unsafe_allow_html=True)
+    st.page_link("pages/4_🗓️_Sendeplan.py", label="Planer öffnen", icon="👉")
 
-with col2:
-    st.markdown(f"""
-    <div class="bento-card">
-        <h4 style="margin-top:0;">📊 Stats & Analytics</h4>
-        <p style="color: #94A3B8; font-size: 14px; margin-bottom:0;">Überwache dein Wachstum live per YouTube-API oder halte Meilensteine manuell in Diagrammen fest.</p>
-    </div>
-    """, unsafe_allow_html=True)
+with c2:
+    st.markdown('<div class="bento-card"><h4>📝 Ideen & ToDos</h4><p style="font-size: 14px;">Keywords und Skripte speichern.</p></div>', unsafe_allow_html=True)
+    st.page_link("pages/2_📝_Ideen_und_ToDos.py", label="Ideen öffnen", icon="👉")
     
-    st.markdown(f"""
-    <div class="bento-card">
-        <h4 style="margin-top:0;">💬 Chat Befehle</h4>
-        <p style="color: #94A3B8; font-size: 14px; margin-bottom:0;">Schneller Zugriff auf deine wichtigsten Chat-Kommandos und Moderatoren-Richtlinien.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="bento-card" style="margin-top:20px;"><h4>📢 Post Creator</h4><p style="font-size: 14px;">Sende Alerts an deinen Discord.</p></div>', unsafe_allow_html=True)
+    st.page_link("pages/7_📢_Post_Creator.py", label="Posten", icon="👉")
 
-with col3:
-    st.markdown(f"""
-    <div class="bento-card">
-        <h4 style="margin-top:0;">📢 Discord Webhooks</h4>
-        <p style="color: #94A3B8; font-size: 14px; margin-bottom:0;">Automatisiere Benachrichtigungen mit optimierten Algorithmus-Vorschauen für Social Media.</p>
-    </div>
-    """, unsafe_allow_html=True)
+with c3:
+    st.markdown('<div class="bento-card"><h4>💼 Business Hub</h4><p style="font-size: 14px;">Steuern, Links und Setup.</p></div>', unsafe_allow_html=True)
+    st.page_link("pages/6_💼_Business_Hub.py", label="Business öffnen", icon="👉")
     
-    st.markdown(f"""
-    <div class="bento-card">
-        <h4 style="margin-top:0;">💼 Business Hub</h4>
-        <p style="color: #94A3B8; font-size: 14px; margin-bottom:0;">Behalte Kooperationen, Sponsoren-Kontakte und Einnahmen übersichtlich im Griff.</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Logout-Button unten in der Seitenleiste platzieren
-st.sidebar.markdown("---")
-if st.sidebar.button("🚪 Ausloggen", use_container_width=True):
-    st.session_state["logged_in"] = False
-    st.session_state["username"] = ""
-    st.rerun()
+    st.markdown('<div class="bento-card" style="margin-top:20px;"><h4>🎓 Creator Academy</h4><p style="font-size: 14px;">Guides für Bots, Alerts & Co.</p></div>', unsafe_allow_html=True)
+    st.page_link("pages/8_🎓_Creator_Academy.py", label="Lernen", icon="👉")
