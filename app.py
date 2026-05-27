@@ -2,7 +2,7 @@ import streamlit as st
 import utils
 
 # ==============================================================================
-# 1. PAGE CONFIGURATION (Muss an allererster Stelle stehen!)
+# 1. PAGE CONFIGURATION (Muss zwingend an allererster Stelle stehen!)
 # ==============================================================================
 st.set_page_config(
     page_title="Creator Command Center", 
@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 2. 2026 MODERN UI ENGINE (Midnight Navy & Sky Blue Palette)
+# 2. 2026 MODERN UI ENGINE (Midnight Navy Theme)
 # ==============================================================================
 PRIMARY_BLUE = "#38BDF8"
 BG_DEEP_NAVY = "#0F172A"
@@ -21,20 +21,15 @@ TEXT_SLATE = "#F8FAFC"
 
 st.markdown(f"""
 <style>
-    /* Google Fonts laden */
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Inter:wght@400;600&display=swap');
 
-    /* Globales Text- & Hintergrund-Styling */
     html, body, [class*="css"], .stMarkdown {{
         font-family: 'Inter', sans-serif !important;
         color: {TEXT_SLATE} !important;
     }}
 
-    .stApp {{ 
-        background-color: {BG_DEEP_NAVY} !important; 
-    }}
+    .stApp {{ background-color: {BG_DEEP_NAVY} !important; }}
 
-    /* Überschriften im modernisierten Look */
     h1, h2, h3 {{
         font-family: 'Outfit', sans-serif !important;
         font-weight: 700 !important;
@@ -42,13 +37,11 @@ st.markdown(f"""
         color: #FFFFFF !important;
     }}
 
-    /* Linke Navigations-Sidebar */
     [data-testid="stSidebar"] {{
         background-color: {SIDEBAR_NAVY} !important;
         border-right: 1px solid rgba(255, 255, 255, 0.05);
     }}
 
-    /* Interaktive Bento-Buttons */
     .stButton>button {{
         border-radius: 10px !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -65,14 +58,12 @@ st.markdown(f"""
         transform: translateY(-2px) !important;
     }}
 
-    /* Highlight-Button (Blau-Violetter Gradient) */
     .stButton>button[kind="primary"] {{
         background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important;
         border: none !important;
         color: white !important;
     }}
 
-    /* Bento-Kacheln (Expander) */
     div[data-testid="stExpander"] {{
         background-color: rgba(30, 41, 59, 0.5) !important;
         border-radius: 16px !important;
@@ -80,7 +71,6 @@ st.markdown(f"""
         margin-bottom: 20px !important;
     }}
 
-    /* Formularfelder & Inputs */
     .stDataFrame, .stTextInput>div>div, .stNumberInput>div>div, .stSelectbox>div>div, .stTextArea>div>div {{
         border-radius: 10px !important;
         background-color: {SIDEBAR_NAVY} !important;
@@ -91,26 +81,23 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 3. DYNAMISCHE LOGIN- & REGISTRIERUNGS-LOGIK
+# 3. ECHTE DATENBANK-LOGIN- & REGISTRIERUNGS-LOGIK
 # ==============================================================================
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "username" not in st.session_state:
     st.session_state["username"] = ""
 
-# Laden der registrierten Benutzer aus deiner Datenbank/Datei via utils
-existing_users = utils.load_data("users", dict)
-
 if not st.session_state["logged_in"]:
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center;'>🎬 Creator Command Center</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #94A3B8;'>Erstelle einen Account oder logge dich ein, um das System zu starten.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #94A3B8;'>Erstelle einen Account oder logge dich ein. Deine Daten werden sicher in der Cloud gespeichert.</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Perfektes Side-by-Side Layout: Links Login, Rechts Registrierung
+    # Side-by-Side Layout: Links Login, Rechts Registrierung
     col_login, col_register = st.columns(2)
     
-    # --- LINKSEITE: LOGIN ---
+    # --- LINKS: LOGIN (PRÜFT DIE ECHTE DATENBANK) ---
     with col_login:
         st.markdown("### 🔑 Einloggen")
         with st.form("login_form"):
@@ -119,15 +106,30 @@ if not st.session_state["logged_in"]:
             
             st.markdown("<br>", unsafe_allow_html=True)
             if st.form_submit_button("🚀 System starten", type="primary", use_container_width=True):
-                if user_input in existing_users and existing_users[user_input] == pw_input:
-                    st.session_state["logged_in"] = True
-                    st.session_state["username"] = user_input
-                    st.success("✅ Zugriff gewährt!")
-                    st.rerun()
-                else:
-                    st.error("❌ Falscher Benutzername oder Passwort!")
+                if user_input and pw_input:
+                    # Verbindung zur Neon-Datenbank herstellen
+                    conn = utils.get_db_connection()
+                    cursor = conn.cursor()
                     
-    # --- RECHTSEITE: REGISTRIERUNG ---
+                    # Passwort hashen, um es mit der DB zu vergleichen
+                    hashed_input_pw = utils.hash_password(pw_input)
+                    
+                    cursor.execute("SELECT password FROM users WHERE username = %s", (user_input,))
+                    user_row = cursor.fetchone()
+                    cursor.close()
+                    conn.close()
+                    
+                    if user_row and user_row["password"] == hashed_input_pw:
+                        st.session_state["logged_in"] = True
+                        st.session_state["username"] = user_input
+                        st.success("✅ Zugriff gewährt!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Falscher Benutzername oder Passwort!")
+                else:
+                    st.error("⚠️ Bitte fülle alle Felder aus!")
+                    
+    # --- RECHTS: REGISTRIERUNG (SCHREIBT IN DIE ECHTE DATENBANK) ---
     with col_register:
         st.markdown("### 📝 Registrieren")
         with st.form("register_form", clear_on_submit=True):
@@ -139,21 +141,34 @@ if not st.session_state["logged_in"]:
             if st.form_submit_button("💾 Account erstellen", use_container_width=True):
                 if not new_user or not new_pw:
                     st.error("⚠️ Bitte fülle alle Felder aus!")
-                elif new_user in existing_users:
-                    st.error("⚠️ Dieser Benutzername existiert bereits!")
                 elif new_pw != new_pw_confirm:
                     st.error("❌ Die Passwörter stimmen nicht überein!")
                 else:
-                    # Account in der utils-Datei sichern
-                    existing_users[new_user] = new_pw
-                    utils.save_data("users", existing_users)
-                    st.success("🎉 Account erfolgreich erstellt! Du kannst dich jetzt links einloggen.")
+                    conn = utils.get_db_connection()
+                    cursor = conn.cursor()
                     
-    # Das Skript stoppt hier, solange man nicht eingeloggt ist
+                    # Prüfen, ob der Username schon vergeben ist
+                    cursor.execute("SELECT username FROM users WHERE username = %s", (new_user,))
+                    if cursor.fetchone():
+                        st.error("⚠️ Dieser Benutzername existiert bereits!")
+                        cursor.close()
+                        conn.close()
+                    else:
+                        # Passwort sicher verschlüsseln (Hashen) vor dem Speichern
+                        secure_pw = utils.hash_password(new_pw)
+                        
+                        # In die echte Benutzertabelle eintragen
+                        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (new_user, secure_pw))
+                        cursor.close()
+                        conn.close()
+                        
+                        st.success("🎉 Account erfolgreich in der Cloud-Datenbank erstellt! Du kannst dich jetzt links einloggen.")
+                        
+    # Stoppt das Skript für nicht eingeloggte User
     st.stop()
 
 # ==============================================================================
-# 4. MAIN DASHBOARD (Wird nach dem Login geladen)
+# 4. MAIN DASHBOARD (Sichtbar NACH erfolgreichem Login)
 # ==============================================================================
 current_user = st.session_state["username"]
 
@@ -171,7 +186,7 @@ with col_welcome:
     Egal ob du deinen nächsten **Rennplan** strukturierst, das Community-Engagement über **Discord Webhooks** steuerst 
     oder ein neues Video in der SEO-Werkstatt konzipierst – hier läuft alles im modernen 2026-Standard zusammen.
     
-    Nutze das linke Seitenmenü, um direkt zu deinen Werkzeugen zu springen.
+    Nutze das linke Seitenmenü, um direkt zu deinen Werkzeugen zu springen. Your data is perfectly synced.
     """)
     
 with col_tools:
@@ -183,4 +198,4 @@ with col_tools:
         * **🤖 Automationen:** Steuere deine Discord-Schnittstellen und Chat-Befehle.
         """)
 
-st.success("✨ Das System ist voll einsatzbereit. Viel Erfolg beim Erstellen deines Contents!")
+st.success("✨ Das System läuft stabil auf der Cloud-Datenbank. Viel Erfolg beim Erstellen deines Contents!")
