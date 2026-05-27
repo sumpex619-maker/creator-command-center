@@ -1,96 +1,143 @@
 import streamlit as st
+import pandas as pd
 from datetime import datetime
 import utils
 
-st.set_page_config(page_title="Ideen & To-Dos - Command Center", layout="wide")
-username = utils.check_login()
+# ==============================================================================
+# SEITEN-KONFIGURATION & LOGIN-CHECK
+# ==============================================================================
+current_user = utils.check_login()
 
-st.title("📝 Ideen & To-Dos")
+st.title("📝 Ideen-Schmiede & SEO-Werkstatt")
+st.markdown("Plane deine Inhalte strategisch, optimiere sie für die Social-Media-Suche und behalte deinen kreativen Workflow im Blick.")
 
-# Datenpfade
-ideas_file = utils.get_user_filepath(username, "ideas")
-todos_file = utils.get_user_filepath(username, "todos")
+# Zwei Reiter für die Übersichtlichkeit (2026er Clean-Style)
+tab_neu, tab_uebersicht = st.tabs([
+    "💡 Neue Idee & SEO-Planer",
+    "📋 Meine Ideen-Schmiede"
+])
 
-# Daten laden
-ideas_daten = utils.load_data(ideas_file, list)
-todos_daten = utils.load_data(todos_file, list)
+# ------------------------------------------------------------------------------
+# TAB 1: NEUE IDEE & SEO-PLANER
+# ------------------------------------------------------------------------------
+with tab_neu:
+    st.subheader("🚀 Neue Content-Idee strategisch ausarbeiten")
+    
+    with st.form("idea_seo_form", clear_on_submit=True):
+        col_basis, col_seo = st.columns(2)
+        
+        # Linke Spalte: Klassische Basis-Infos
+        with col_basis:
+            st.markdown("### 📋 Basis-Informationen")
+            titel = st.text_input("Arbeitstitel / Rohe Idee", placeholder="z.B. Mein perfektes Racing-Setup 2026")
+            plattform = st.selectbox("Ziel-Plattform", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X"])
+            status = st.selectbox("Produktions-Status", ["💡 Idee", "✍️ Skript & Planung", "🎥 Aufnahme & Schnitt", "✅ Veröffentlicht"])
+            notizen = st.text_area("Inhaltliche Notizen / Stichpunkte", placeholder="Worum soll es im Kern gehen? Welche Szenen oder Inhalte planst du?")
+            
+        # Rechte Spalte: Die 2026 Social-SEO-Optimierung
+        with col_seo:
+            st.markdown("### 🔍 2026 Social-SEO-Optimierung")
+            keyword = st.text_input("🔑 Fokus-Suchbegriff (Keyword)", placeholder="z.B. simracing setup anfänger")
+            seo_titel = st.text_input("🎬 Optimierter Titel (Suchmaschinen-Fit)", placeholder="z.B. SimRacing Setup für Anfänger: 5 Fehler, die du vermeiden musst!")
+            problem = st.text_area("🎯 Welches Problem löst dieses Video für den Zuschauer?", placeholder="z.B. Anfänger wissen oft nicht, welche Force-Feedback-Einstellungen richtig sind und verzweifeln.")
+            hashtags = st.text_input("🏷️ Geplante Tags / Hashtags", placeholder="z.B. #simracing, #gaming, #setup2026")
 
-col_ideas, col_todos = st.columns([1, 1])
-
-with col_ideas:
-    st.subheader("💡 Content Ideen-Pool")
-    with st.expander("➕ Neue Idee festhalten", expanded=False):
-        idea_title = st.text_input("Idee / Arbeitstitel")
-        idea_platform = st.selectbox("Ziel-Plattform", ["Twitch", "YouTube", "TikTok", "Instagram", "Kick", "Sonstiges"])
-        idea_notes = st.text_area("Notizen / Konzept-Skizze")
-        if st.button("Idee speichern", type="primary"):
-            if idea_title:
-                ideas_daten.append({
-                    "id": str(datetime.now().timestamp()), 
-                    "titel": idea_title, 
-                    "plattform": idea_platform, 
-                    "notizen": idea_notes, 
-                    "status": "Geplant"
-                })
-                utils.save_data(ideas_file, ideas_daten)
-                st.rerun()
+        st.markdown("<br>", unsafe_allow_html=True)
+        submit_btn = st.form_submit_button("💾 Idee & SEO-Konzept speichern", type="primary", use_container_width=True)
+        
+        if submit_btn:
+            if not titel:
+                st.error("⚠️ Bitte gib zumindest einen Arbeitstitel ein!")
+            else:
+                new_idea = {
+                    "id": str(datetime.now().timestamp()),
+                    "datum": datetime.now().strftime("%Y-%m-%d"),
+                    "titel": titel,
+                    "plattform": plattform,
+                    "status": status,
+                    "notizen": notizen,
+                    "keyword": keyword,
+                    "seo_titel": seo_titel,
+                    "problem": problem,
+                    "hashtags": hashtags
+                }
                 
-    if ideas_daten:
-        for idx, idea in enumerate(ideas_daten):
-            with st.expander(f"📌 [{idea['plattform']}] {idea['titel']} ({idea['status']})"):
-                st.write(idea['notizen'] if idea['notizen'] else '*Keine Notizen*')
-                c1, c2 = st.columns([3, 1])
-                neuer_status = c1.selectbox("Status", ["Geplant", "In Arbeit", "Fertig"], index=["Geplant", "In Arbeit", "Fertig"].index(idea["status"]), key=f"st_{idea['id']}")
-                if neuer_status != idea["status"]:
-                    ideas_daten[idx]["status"] = neuer_status
-                    utils.save_data(ideas_file, ideas_daten)
-                    st.rerun()
-                if c2.button("🗑️", key=f"del_i_{idea['id']}"):
-                    ideas_daten = [i for i in ideas_daten if i["id"] != idea["id"]]
-                    utils.save_data(ideas_file, ideas_daten)
-                    st.rerun()
+                # Daten über utils laden, anhängen und wieder speichern
+                ideas = utils.load_data("ideas", list)
+                ideas.append(new_idea)
+                utils.save_data("ideas", ideas)
+                st.success("✅ Deine Idee wurde erfolgreich SEO-optimiert in der Schmiede hinterlegt!")
+                st.rerun()
 
-with col_todos:
-    st.subheader("✅ Creator To-Do Liste")
-    col_td_input, col_td_btn = st.columns([3, 1])
-    neues_todo_text = col_td_input.text_input("Neue Aufgabe...", label_visibility="collapsed")
+# ------------------------------------------------------------------------------
+# TAB 2: MEINE IDEEN-SCHMIEDE (ÜBERSICHT & WORKFLOW)
+# ------------------------------------------------------------------------------
+with tab_uebersicht:
+    st.subheader("📋 Deine gespeicherten Ideen & Konzepte")
+    ideas = utils.load_data("ideas", list)
     
-    if col_td_btn.button("Hinzufügen", use_container_width=True) and neues_todo_text:
-        todos_daten.append({"id": str(datetime.now().timestamp()), "text": neues_todo_text, "done": False})
-        utils.save_data(todos_file, todos_daten)
-        st.rerun()
-        
-    st.write("---")
-    offene_todos = [t for t in todos_daten if not t["done"]]
-    erledigte_todos = [t for t in todos_daten if t["done"]]
-    
-    for t in offene_todos:
-        ct1, ct2 = st.columns([10, 1])
-        if ct1.checkbox(t["text"], value=False, key=f"todo_{t['id']}"):
-            for item in todos_daten: 
-                if item["id"] == t["id"]: item["done"] = True
-            utils.save_data(todos_file, todos_daten)
-            st.rerun()
-        if ct2.button("🗑️", key=f"del_td_{t['id']}"):
-            todos_daten = [item for item in todos_daten if item["id"] != t["id"]]
-            utils.save_data(todos_file, todos_daten)
-            st.rerun()
-    
-    if erledigte_todos:
+    if not ideas:
+        st.info("Noch keine Ideen eingetragen. Nutze den ersten Reiter, um deinen ersten Geistesblitz zu planen!")
+    else:
+        # Dynamische Filter oben drüber im modernen Design
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            filter_plat = st.multiselect("Filtern nach Plattform", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X"], default=[])
+        with col_f2:
+            filter_stat = st.multiselect("Filtern nach Status", ["💡 Idee", "✍️ Skript & Planung", "🎥 Aufnahme & Schnitt", "✅ Veröffentlicht"], default=[])
+            
         st.markdown("---")
-        for t in erledigte_todos:
-            ct1, ct2 = st.columns([10, 1])
-            if ct1.checkbox(f"~~{t['text']}~~", value=True, key=f"todo_{t['id']}"):
-                for item in todos_daten: 
-                    if item["id"] == t["id"]: item["done"] = False
-                utils.save_data(todos_file, todos_daten)
-                st.rerun()
-            if ct2.button("🗑️", key=f"del_td_{t['id']}"):
-                todos_daten = [item for item in todos_daten if item["id"] != t["id"]]
-                utils.save_data(todos_file, todos_daten)
-                st.rerun()
         
-        if st.button("🧹 Erledigte aufräumen"):
-            todos_daten = [t for t in todos_daten if not t["done"]]
-            utils.save_data(todos_file, todos_daten)
-            st.rerun()
+        # Ideen anzeigen (Neueste zuerst)
+        for idea in reversed(ideas):
+            # Filter-Logik anwenden
+            if filter_plat and idea.get("plattform") not in filter_plat:
+                continue
+            if filter_stat and idea.get("status") not in filter_stat:
+                continue
+                
+            # Schicke einklappbare Box pro Idee
+            with st.expander(f"{idea.get('status', '💡')} | {idea.get('plattform')} — {idea.get('titel')}"):
+                col_view1, col_view2 = st.columns(2)
+                
+                with col_view1:
+                    st.markdown("#### 📋 Details & Inhalt")
+                    st.markdown(f"**📅 Erstellt am:** {idea.get('datum')}")
+                    st.markdown(f"**📝 Inhaltliche Notizen:**")
+                    st.write(idea.get('notizen') if idea.get('notizen') else "*Keine Notizen vorhanden.*")
+                    
+                with col_view2:
+                    st.markdown("#### 🔍 Social SEO-Check")
+                    st.markdown(f"**🔑 Haupt-Keyword:** `{idea.get('keyword') if idea.get('keyword') else 'Nicht definiert'}`")
+                    st.markdown(f"**🎬 SEO-Titel:** *{idea.get('seo_titel') if idea.get('seo_titel') else 'Nicht definiert'}*")
+                    st.markdown(f"**🎯 Gelöstes Problem:** {idea.get('problem') if idea.get('problem') else '*Nicht definiert*'}")
+                    st.markdown(f"**🏷️ Hashtags:** `{idea.get('hashtags') if idea.get('hashtags') else 'Keine'}`")
+                
+                st.markdown("---")
+                
+                # Interaktions-Buttons unten in der Box
+                col_btn1, col_btn2, _ = st.columns([2, 1, 2])
+                with col_btn1:
+                    # Status direkt in der Übersicht updaten
+                    status_liste = ["💡 Idee", "✍️ Skript & Planung", "🎥 Aufnahme & Schnitt", "✅ Veröffentlicht"]
+                    aktueller_index = status_liste.index(idea.get('status', "💡 Idee"))
+                    
+                    neuer_status = st.selectbox(
+                        "Status aktualisieren", 
+                        status_liste, 
+                        index=aktueller_index, 
+                        key=f"status_select_{idea.get('id')}"
+                    )
+                    if neuer_status != idea.get('status'):
+                        idea['status'] = neuer_status
+                        utils.save_data("ideas", ideas)
+                        st.toast(f"Status aktualisiert: {neuer_status}")
+                        st.rerun()
+                        
+                with col_btn2:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    if st.button("🗑️ Löschen", key=f"del_btn_{idea.get('id')}", type="secondary", use_container_width=True):
+                        ideas.remove(idea)
+                        utils.save_data("ideas", ideas)
+                        st.success("Idee gelöscht!")
+                        st.rerun()
