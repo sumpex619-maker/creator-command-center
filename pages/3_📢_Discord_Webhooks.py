@@ -1,69 +1,86 @@
 import streamlit as st
 import utils
 
-st.set_page_config(page_title="Webhook Verwaltung - Command Center", layout="wide")
-username = utils.check_login()
+# Design-Engine aktivieren (für einheitlichen Look auf jeder Unterseite)
+PRIMARY_BLUE = "#38BDF8"
+BG_DEEP_NAVY = "#0F172A"
+SIDEBAR_NAVY = "#1E293B"
+TEXT_SLATE = "#F8FAFC"
 
-st.title("📢 Discord Webhook Profile & Express-Post")
+st.markdown(f"""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Inter:wght@400;600&display=swap');
+    html, body, [class*="css"], .stMarkdown {{ font-family: 'Inter', sans-serif !important; color: {TEXT_SLATE} !important; }}
+    .stApp {{ background-color: {BG_DEEP_NAVY} !important; }}
+    h1, h2, h3 {{ font-family: 'Outfit', sans-serif !important; font-weight: 700 !important; color: #FFFFFF !important; }}
+    div[data-testid="stExpander"], .stAlert {{ background-color: rgba(30, 41, 59, 0.4) !important; border-radius: 16px !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; }}
+    .stButton>button {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; color: white !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; font-family: 'Outfit', sans-serif !important; }}
+    .stButton>button:hover {{ border-color: {PRIMARY_BLUE} !important; box-shadow: 0 0 15px rgba(56, 189, 248, 0.3) !important; }}
+    .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important; border: none !important; }}
+    .stTextInput>div>div, .stSelectbox>div>div, .stTextArea>div>div {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: {TEXT_SLATE} !important; }}
+</style>
+""", unsafe_allow_html=True)
 
-webhook_file = utils.get_user_filepath(username, "webhooks")
-webhook_profile = utils.load_data(webhook_file, dict)
+# Login-Schutz prüfen
+current_user = utils.check_login()
 
-col_wh_setup, col_wh_send = st.columns([1, 1])
+st.title("🤖 Discord Webhook Zentrale")
+st.markdown("Automatisiere deine Community-Benachrichtigungen mit vollem Voransichts-Support.")
+st.markdown("---")
 
-with col_wh_setup:
-    st.subheader("⚙️ Profile anlegen / verwalten")
-    with st.expander("➕ Neues Webhook-Profil erstellen", expanded=False):
-        prof_name = st.text_input("Profil-Name (z.B. 'Discord Ankündigung')", key="p_name")
-        prof_url = st.text_input("Webhook URL von Discord", key="p_url")
-        prof_plat = st.selectbox("Zugeordnete Plattform (für Farben)", ["Allgemein", "Twitch", "YouTube", "Kick", "TikTok", "Instagram"], key="p_plat")
-        prof_role = st.text_input("Rollen-ID für Pings (Optional)", placeholder="z.B. 123456789012345678", key="p_role")
+col_manage, col_test = st.columns(2)
+
+with col_manage:
+    st.markdown("### ⚙️ Webhook einrichten")
+    with st.form("webhook_form", clear_on_submit=True):
+        profile_name = st.text_input("Profilname", placeholder="z.B. Stream-Ankündigung")
+        url = st.text_input("Webhook URL", placeholder="https://discord.com/api/webhooks/...")
+        plattform = st.selectbox("Ziel-Plattform", ["Twitch", "YouTube", "Kick", "Instagram", "X (Twitter)", "Allgemein"])
+        role_id = st.text_input("Rollen-ID für Ping (optional)", placeholder="123456789012345678")
         
-        if st.button("Profil speichern", type="primary"):
-            if not prof_name or not prof_url:
-                st.error("Bitte Name und URL ausfüllen!")
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.form_submit_button("💾 Webhook speichern", type="primary", use_container_width=True):
+            if profile_name and url:
+                try:
+                    conn = utils.get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        INSERT INTO webhooks (username, profile_name, url, plattform, role_id)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (username, profile_name) 
+                        DO UPDATE SET url = EXCLUDED.url, plattform = EXCLUDED.plattform, role_id = EXCLUDED.role_id
+                    """, (current_user, profile_name, url, plattform, role_id))
+                    cursor.close()
+                    conn.close()
+                    st.success(f"✅ Webhook '{profile_name}' erfolgreich gesichert!")
+                except Exception as e:
+                    st.error(f"Datenbankfehler: {e}")
             else:
-                webhook_profile[prof_name] = {"url": prof_url, "plattform": prof_plat, "role_id": prof_role}
-                utils.save_data(webhook_file, webhook_profile)
-                st.success(f"Profil '{prof_name}' gespeichert!")
-                st.rerun()
+                st.error("⚠️ Profilname und URL sind Pflichtfelder!")
 
-    if webhook_profile:
-        st.write("### 🗂️ Deine Profile")
-        for p_name, p_data in list(webhook_profile.items()):
-            with st.expander(f"⚙️ {p_name} ({p_data['plattform']})"):
-                st.text(f"URL: {p_data['url'][:45]}...")
-                if p_data['role_id']: st.text(f"Ping-Rolle: {p_data['role_id']}")
-                if st.button("🗑️ Profil löschen", key=f"del_prof_{p_name}"):
-                    del webhook_profile[p_name]
-                    utils.save_data(webhook_file, webhook_profile)
-                    st.rerun()
+with col_test:
+    st.markdown("### 🚀 Schneller Live-Test")
+    
+    # Vorhandene Webhooks aus DB laden
+    conn = utils.get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT profile_name, url FROM webhooks WHERE username = %s", (current_user,))
+    saved_webhooks = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    if saved_webhooks:
+        webhook_options = {row["profile_name"]: row["url"] for row in saved_webhooks}
+        selected_hook = st.selectbox("Wähle ein Profil für den Test", list(webhook_options.keys()))
+        test_msg = st.text_area("Test-Nachricht", placeholder="Hallo Server! Das ist ein Test aus meinem Command Center.")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.form_submit_button("💥 Testnachricht absenden", use_container_width=True):
+            if test_msg:
+                success, msg = utils.send_discord_webhook(webhook_options[selected_hook], text_content=test_msg)
+                if success: st.success(msg)
+                else: st.error(msg)
+            else:
+                st.error("⚠️ Bitte gib eine Nachricht für den Test ein.")
     else:
-        st.info("Noch keine Webhook-Profile eingerichtet.")
-
-with col_wh_send:
-    st.subheader("🚀 Express-Nachricht senden")
-    if not webhook_profile:
-        st.info("Erstelle links ein Profil, um Nachrichten zu senden.")
-    else:
-        selected_prof = st.selectbox("Senden über Profil:", list(webhook_profile.keys()))
-        act_prof = webhook_profile[selected_prof]
-        
-        ping_text = f"<@&{act_prof['role_id']}> " if act_prof["role_id"] and act_prof["role_id"].lower() not in ["everyone", "here"] else (f"@{act_prof['role_id']} " if act_prof["role_id"] else "")
-        
-        c_ping = st.text_input("Normaler Text / Ping-Zeile", value=ping_text)
-        c_title = st.text_input("Embed-Titel (Fett gedruckte Überschrift)")
-        c_desc = st.text_area("Embed-Beschreibung (Haupttext)", height=150)
-        
-        if st.button("📢 Nachricht jetzt abschicken", type="primary"):
-            embed_payload = None
-            if c_title or c_desc:
-                embed_payload = {
-                    "title": c_title if c_title else "",
-                    "description": c_desc if c_desc else "",
-                    "color": utils.COLORS.get(act_prof["plattform"], utils.COLORS["Allgemein"])
-                }
-            
-            success, msg = utils.send_discord_webhook(act_prof["url"], text_content=c_ping, embed_data=embed_payload)
-            if success: st.success(msg)
-            else: st.error(msg)
+        st.info("ℹ️ Sobald du links deinen ersten Webhook speicherst, kannst du ihn hier direkt testen!")

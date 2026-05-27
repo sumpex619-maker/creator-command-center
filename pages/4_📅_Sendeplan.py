@@ -1,85 +1,58 @@
 import streamlit as st
-from datetime import time
 import utils
 
-st.set_page_config(page_title="Sendeplan - Command Center", layout="wide")
-username = utils.check_login()
+PRIMARY_BLUE = "#38BDF8"
+BG_DEEP_NAVY = "#0F172A"
+SIDEBAR_NAVY = "#1E293B"
+TEXT_SLATE = "#F8FAFC"
 
-st.title("📅 Sendeplan & Kalender")
+st.markdown(f"""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Inter:wght@400;600&display=swap');
+    html, body, [class*="css"], .stMarkdown {{ font-family: 'Inter', sans-serif !important; color: {TEXT_SLATE} !important; }}
+    .stApp {{ background-color: {BG_DEEP_NAVY} !important; }}
+    h1, h2, h3 {{ font-family: 'Outfit', sans-serif !important; font-weight: 700 !important; color: #FFFFFF !important; }}
+    div[data-testid="stExpander"], .stAlert {{ background-color: rgba(30, 41, 59, 0.4) !important; border-radius: 16px !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; }}
+    .stButton>button {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; color: white !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; font-family: 'Outfit', sans-serif !important; }}
+    .stButton>button:hover {{ border-color: {PRIMARY_BLUE} !important; box-shadow: 0 0 15px rgba(56, 189, 248, 0.3) !important; }}
+    .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important; border: none !important; }}
+    .stTextInput>div>div, .stSelectbox>div>div, .stTextArea>div>div {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: {TEXT_SLATE} !important; }}
+</style>
+""", unsafe_allow_html=True)
 
-schedule_file = utils.get_user_filepath(username, "schedule")
-webhook_file = utils.get_user_filepath(username, "webhooks")
+current_user = utils.check_login()
 
-sendeplan_daten = utils.load_data(schedule_file, lambda: {tag: {"aktiv": False, "zeit": "19:00", "game": "", "infos": ""} for tag in utils.WOCHENTAGE})
-webhook_profile = utils.load_data(webhook_file, dict)
+st.title("🗓️ Sendeplan- & Rennplan-Manager")
+st.markdown("Koordiniere deine Zeiten und behalte die Übersicht über anstehende Events.")
+st.markdown("---")
 
-st.subheader("Wochenübersicht bearbeiten")
-cols_tage = st.columns(7)
+# Sendeplan-Daten laden (gesichert pro User in der Cloud)
+sendeplan = utils.load_data("sendeplan", dict)
 
-for idx, tag in enumerate(utils.WOCHENTAGE):
-    with cols_tage[idx]:
-        st.markdown(f"### {tag}")
-        t_aktiv = st.checkbox("Live / Event", value=sendeplan_daten[tag]["aktiv"], key=f"ak_{tag}")
-        sendeplan_daten[tag]["aktiv"] = t_aktiv
+col_plan_form, col_plan_view = st.columns([1, 1.5])
+
+with col_plan_form:
+    st.markdown("### 🛠️ Slot eintragen / bearbeiten")
+    with st.form("sendeplan_form"):
+        tag = st.selectbox("Wochentag", utils.WOCHENTAGE)
+        uhrzeit = st.text_input("Uhrzeit / Zeitraum", placeholder="z.B. 19:00 - 22:00 Uhr")
+        inhalt = st.text_area("Geplanter Inhalt / Event", placeholder="z.B. SimRacing Meisterschaft - Lauf 3")
         
-        if t_aktiv:
-            try:
-                h, m = map(int, sendeplan_daten[tag]["zeit"].split(":"))
-                default_time = time(h, m)
-            except:
-                default_time = time(19, 0)
-                
-            t_zeit = st.time_input("Uhrzeit", value=default_time, key=f"zt_{tag}")
-            sendeplan_daten[tag]["zeit"] = t_zeit.strftime("%H:%M")
-            
-            t_game = st.text_input("Spiel / Thema", value=sendeplan_daten[tag]["game"], key=f"gm_{tag}")
-            sendeplan_daten[tag]["game"] = t_game
-            
-            t_info = st.text_input("Zusatz-Info", value=sendeplan_daten[tag]["infos"], key=f"if_{tag}", placeholder="z.B. Community Day")
-            sendeplan_daten[tag]["infos"] = t_info
-        else:
-            st.caption("😴 Off-Day / Pause")
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.form_submit_button("💾 Tag im Plan updaten", type="primary", use_container_width=True):
+            sendeplan[tag] = {"uhrzeit": uhrzeit, "inhalt": inhalt}
+            utils.save_data("sendeplan", sendeplan)
+            st.success(f"✅ {tag} erfolgreich im Plan aktualisiert!")
+            st.rerun()
 
-if st.button("💾 Sendeplan-Änderungen lokal speichern", type="secondary", use_container_width=True):
-    utils.save_data(schedule_file, sendeplan_daten)
-    st.success("✓ Sendeplan erfolgreich auf dem Server gesichert!")
-    st.rerun()
-
-st.write("---")
-st.subheader("📢 Sendeplan auf Discord posten")
-
-if not webhook_profile:
-    st.error("⚠️ Du musst zuerst ein Webhook-Profil im Tab 'Discord Webhooks' anlegen!")
-else:
-    selected_plan_prof = st.selectbox("Sendeplan-Webhook auswählen:", list(webhook_profile.keys()))
-    act_plan_prof = webhook_profile[selected_plan_prof]
+with col_plan_view:
+    st.markdown("### 📅 Deine aktuelle Wochenübersicht")
     
-    plan_ping_text = f"<@&{act_plan_prof['role_id']}> " if act_plan_prof["role_id"] and act_plan_prof["role_id"].lower() not in ["everyone", "here"] else (f"@{act_plan_prof['role_id']} " if act_plan_prof["role_id"] else "")
-    
-    edit_plan_ping = st.text_input("Ping-Text für Discord", value=f"{plan_ping_text}📅 Mein Sendeplan für diese Woche!")
-    edit_plan_title = st.text_input("Discord Embed Titel", value="🗓️ STREAMPLAN / TERMINE")
-    
-    # Generiere Beschreibung aus Daten
-    plan_desc = ""
+    # Bento-Grid-Look für die Wochentage
     for tag in utils.WOCHENTAGE:
-        if sendeplan_daten[tag]["aktiv"]:
-            plan_desc += f"🔴 **{tag}:** ab **{sendeplan_daten[tag]['zeit']}** Uhr\n🎮 *{sendeplan_daten[tag]['game']}*"
-            if sendeplan_daten[tag]["infos"]: plan_desc += f" | *{sendeplan_daten[tag]['infos']}*"
-            plan_desc += "\n\n"
-        else:
-            plan_desc += f"😴 **{tag}:** *🔑 Off-Day / Pause*\n\n"
-            
-    edit_plan_desc = st.text_area("Vorschau des Sendeplans (Anpassen erlaubt)", value=plan_desc, height=250)
-    
-    if st.button("🚀 Sendeplan an Discord übertragen", type="primary", use_container_width=True):
-        success, msg = utils.send_discord_webhook(
-            act_plan_prof["url"], 
-            text_content=edit_plan_ping, 
-            embed_data={
-                "title": edit_plan_title, 
-                "description": edit_plan_desc, 
-                "color": utils.COLORS["Sendeplan / Kalender"]
-            }
-        )
-        if success: st.success("🚀 Sendeplan wurde erfolgreich auf Discord gepostet!")
-        else: st.error(msg)
+        slot = sendeplan.get(tag, {"uhrzeit": "Keine Termine", "inhalt": "Streaming-frei oder Flexibel"})
+        
+        with st.expander(f"🔹 {tag}", expanded=True):
+            c_time, c_content = st.columns([1, 2])
+            c_time.markdown(f"**⏰ Zeit:**\n`{slot['uhrzeit']}`")
+            c_content.markdown(f"**🎬 Aktivität:**\n{slot['inhalt']}")
