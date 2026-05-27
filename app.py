@@ -2,7 +2,7 @@ import streamlit as st
 import utils
 
 # ==============================================================================
-# 1. PAGE CONFIGURATION (Muss zwingend an allererster Stelle stehen!)
+# 1. PAGE CONFIGURATION (Muss an allererster Stelle stehen!)
 # ==============================================================================
 st.set_page_config(
     page_title="Creator Command Center", 
@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 2. 2026 MODERN UI ENGINE (Midnight Navy & Sky Blue)
+# 2. 2026 MODERN UI ENGINE (Midnight Navy & Sky Blue Palette)
 # ==============================================================================
 PRIMARY_BLUE = "#38BDF8"
 BG_DEEP_NAVY = "#0F172A"
@@ -91,45 +91,69 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 3. LOGIN-LOGIK & SESSION-STATE
+# 3. DYNAMISCHE LOGIN- & REGISTRIERUNGS-LOGIK
 # ==============================================================================
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "username" not in st.session_state:
     st.session_state["username"] = ""
 
-# Falls der User NICHT eingeloggt ist, zeigen wir die Login-Maske
+# Laden der registrierten Benutzer aus deiner Datenbank/Datei via utils
+existing_users = utils.load_data("users", dict)
+
 if not st.session_state["logged_in"]:
     st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>🎬 Creator Command Center</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #94A3B8;'>Erstelle einen Account oder logge dich ein, um das System zu starten.</p>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    # Zentrierung des Login-Fensters über Spalten (Side-by-Side Prinzip)
-    col_space1, col_login_box, col_space2 = st.columns([1, 2, 1])
+    # Perfektes Side-by-Side Layout: Links Login, Rechts Registrierung
+    col_login, col_register = st.columns(2)
     
-    with col_login_box:
-        st.markdown("<h1 style='text-align: center;'>🔒 Command Center</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #94A3B8;'>Bitte verifiziere dich, um die Systeme zu starten.</p>", unsafe_allow_html=True)
-        
+    # --- LINKSEITE: LOGIN ---
+    with col_login:
+        st.markdown("### 🔑 Einloggen")
         with st.form("login_form"):
-            user_input = st.text_input("Benutzername", placeholder="Dein Username")
-            pw_input = st.text_input("Passwort", type="password", placeholder="••••••••")
+            user_input = st.text_input("Benutzername", placeholder="Dein Username", key="login_user")
+            pw_input = st.text_input("Passwort", type="password", placeholder="••••••••", key="login_pw")
             
             st.markdown("<br>", unsafe_allow_html=True)
             if st.form_submit_button("🚀 System starten", type="primary", use_container_width=True):
-                # 🛠️ HIER DEINE GEWÜNSCHTEN ZUGANGSDATEN EINTRAGEN:
-                # Standardmäßig ist hier "Admin" und "1234" eingestellt.
-                if user_input == "Admin" and pw_input == "1234":
+                if user_input in existing_users and existing_users[user_input] == pw_input:
                     st.session_state["logged_in"] = True
                     st.session_state["username"] = user_input
-                    st.success("✅ Zugriff gewährt! Initialisiere Dashboard...")
+                    st.success("✅ Zugriff gewährt!")
                     st.rerun()
                 else:
                     st.error("❌ Falscher Benutzername oder Passwort!")
                     
-    # Das Skript stoppt hier, damit unangemeldete User nichts sehen können
+    # --- RECHTSEITE: REGISTRIERUNG ---
+    with col_register:
+        st.markdown("### 📝 Registrieren")
+        with st.form("register_form", clear_on_submit=True):
+            new_user = st.text_input("Neuer Benutzername", placeholder="Wunsch-Username", key="reg_user")
+            new_pw = st.text_input("Neues Passwort", type="password", placeholder="Sicheres Passwort", key="reg_pw")
+            new_pw_confirm = st.text_input("Passwort wiederholen", type="password", placeholder="••••••••", key="reg_pw_conf")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.form_submit_button("💾 Account erstellen", use_container_width=True):
+                if not new_user or not new_pw:
+                    st.error("⚠️ Bitte fülle alle Felder aus!")
+                elif new_user in existing_users:
+                    st.error("⚠️ Dieser Benutzername existiert bereits!")
+                elif new_pw != new_pw_confirm:
+                    st.error("❌ Die Passwörter stimmen nicht überein!")
+                else:
+                    # Account in der utils-Datei sichern
+                    existing_users[new_user] = new_pw
+                    utils.save_data("users", existing_users)
+                    st.success("🎉 Account erfolgreich erstellt! Du kannst dich jetzt links einloggen.")
+                    
+    # Das Skript stoppt hier, solange man nicht eingeloggt ist
     st.stop()
 
 # ==============================================================================
-# 4. MAIN DASHBOARD (Sichtbar nach erfolgreichem Login)
+# 4. MAIN DASHBOARD (Wird nach dem Login geladen)
 # ==============================================================================
 current_user = st.session_state["username"]
 
