@@ -1,16 +1,16 @@
 import streamlit as st
 import utils
+import os  # NEU: Wird für den automatischen Datei-Scanner benötigt
 
 st.set_page_config(page_title="Creator Command Center", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
 
-# Session State
+# ==============================================================================
+# SESSION STATE & THEME ENGINE
+# ==============================================================================
 if "logged_in" not in st.session_state: st.session_state["logged_in"] = False
 if "username" not in st.session_state: st.session_state["username"] = ""
 if "theme" not in st.session_state: st.session_state["theme"] = "Midnight (Dark)"
 
-# ==============================================================================
-# DYNAMISCHES DESIGN SYSTEM (Light / Dark Mode)
-# ==============================================================================
 if st.session_state["theme"] == "Midnight (Dark)":
     BG_COLOR = "#0F172A"
     SIDEBAR_BG = "#1E293B"
@@ -38,11 +38,14 @@ st.markdown(f"""
     .stButton>button:hover {{ border-color: #38BDF8 !important; transform: translateY(-2px); }}
     .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important; border: none !important; color: white !important; }}
     .stTextInput>div>div, .stSelectbox>div>div, .stTextArea>div>div {{ border-radius: 10px !important; background-color: {SIDEBAR_BG} !important; border: 1px solid {BORDER_COLOR} !important; color: {TEXT_COLOR} !important; }}
+    .stTabs [data-baseweb="tab-list"] {{ gap: 10px !important; }}
+    .stTabs [data-baseweb="tab"] {{ background-color: {CARD_BG} !important; border-radius: 8px 8px 0 0 !important; padding: 10px 20px !important; color: {TEXT_COLOR} !important; opacity: 0.8; }}
+    .stTabs [aria-selected="true"] {{ background-color: #38BDF8 !important; color: white !important; font-weight: 600 !important; opacity: 1; }}
 </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# AUTHENTIFIZIERUNG
+# AUTHENTIFIZIERUNG (LOGIN & REGISTER)
 # ==============================================================================
 if not st.session_state["logged_in"]:
     st.title("🚀 Creator Command Center")
@@ -81,7 +84,6 @@ if not st.session_state["logged_in"]:
 # ==============================================================================
 # DASHBOARD STARTSEITE
 # ==============================================================================
-# Sidebar Konfiguration
 with st.sidebar:
     st.markdown(f"### 👤 {st.session_state['username']}")
     new_theme = st.selectbox("🎨 App Design", ["Midnight (Dark)", "Clean (Light)"], index=0 if st.session_state["theme"] == "Midnight (Dark)" else 1)
@@ -107,24 +109,31 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# 🛠️ Absturzsichere Funktion zum Verlinken der Seiten
+def create_safe_link(filepath, label):
+    if os.path.exists(filepath):
+        st.page_link(filepath, label=label, icon="👉")
+    else:
+        st.error(f"⚠️ Datei fehlt oder heißt falsch: `{filepath}`")
+
 c1, c2, c3 = st.columns(3)
 with c1:
     st.markdown('<div class="bento-card"><h4>📊 Stats & Analytics</h4><p style="font-size: 14px;">Reichweite und Wachstum tracken.</p></div>', unsafe_allow_html=True)
-    st.page_link("pages/1_📊_Stats.py", label="Stats öffnen", icon="👉")
+    create_safe_link("pages/1_📊_Stats.py", "Stats öffnen")
     
     st.markdown('<div class="bento-card" style="margin-top:20px;"><h4>🗓️ Sendeplan</h4><p style="font-size: 14px;">Plane deine Streams und Events.</p></div>', unsafe_allow_html=True)
-    st.page_link("pages/4_🗓️_Sendeplan.py", label="Planer öffnen", icon="👉")
+    create_safe_link("pages/4_🗓️_Sendeplan.py", "Planer öffnen")
 
 with c2:
     st.markdown('<div class="bento-card"><h4>📝 Ideen & ToDos</h4><p style="font-size: 14px;">Keywords und Skripte speichern.</p></div>', unsafe_allow_html=True)
-    st.page_link("pages/2_📝_Ideen_und_ToDos.py", label="Ideen öffnen", icon="👉")
+    create_safe_link("pages/2_📝_Ideen_und_ToDos.py", "Ideen öffnen")
     
     st.markdown('<div class="bento-card" style="margin-top:20px;"><h4>📢 Post Creator</h4><p style="font-size: 14px;">Sende Alerts an deinen Discord.</p></div>', unsafe_allow_html=True)
-    st.page_link("pages/7_📢_Post_Creator.py", label="Posten", icon="👉")
+    create_safe_link("pages/7_📢_Post_Creator.py", "Posten")
 
 with c3:
     st.markdown('<div class="bento-card"><h4>💼 Business Hub</h4><p style="font-size: 14px;">Steuern, Links und Setup.</p></div>', unsafe_allow_html=True)
-    st.page_link("pages/6_💼_Business_Hub.py", label="Business öffnen", icon="👉")
+    create_safe_link("pages/6_💼_Business_Hub.py", "Business öffnen")
     
     st.markdown('<div class="bento-card" style="margin-top:20px;"><h4>🎓 Creator Academy</h4><p style="font-size: 14px;">Guides für Bots, Alerts & Co.</p></div>', unsafe_allow_html=True)
-    st.page_link("pages/8_🎓_Creator_Academy.py", label="Lernen", icon="👉")
+    create_safe_link("pages/8_🎓_Creator_Academy.py", "Lernen")
