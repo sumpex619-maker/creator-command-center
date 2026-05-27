@@ -3,24 +3,42 @@ import pandas as pd
 import utils
 
 # ==============================================================================
-# SEITEN-KONFIGURATION & LOGIN-CHECK
+# GLOBALES 2026 DESIGN SYSTEM (Midnight Navy)
 # ==============================================================================
+PRIMARY_BLUE = "#38BDF8"
+BG_DEEP_NAVY = "#0F172A"
+SIDEBAR_NAVY = "#1E293B"
+TEXT_SLATE = "#F8FAFC"
+
+st.markdown(f"""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Inter:wght@400;600&display=swap');
+    html, body, [class*="css"], .stMarkdown {{ font-family: 'Inter', sans-serif !important; color: {TEXT_SLATE} !important; }}
+    .stApp {{ background-color: {BG_DEEP_NAVY} !important; }}
+    h1, h2, h3 {{ font-family: 'Outfit', sans-serif !important; font-weight: 700 !important; color: #FFFFFF !important; }}
+    div[data-testid="stExpander"], .stAlert {{ background-color: rgba(30, 41, 59, 0.4) !important; border-radius: 16px !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; }}
+    .stButton>button {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; color: white !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; font-family: 'Outfit', sans-serif !important; }}
+    .stButton>button:hover {{ border-color: {PRIMARY_BLUE} !important; box-shadow: 0 0 15px rgba(56, 189, 248, 0.3) !important; }}
+    .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important; border: none !important; }}
+    .stTextInput>div>div, .stSelectbox>div>div, .stTextArea>div>div {{ border-radius: 10px !important; background-color: {SIDEBAR_NAVY} !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: {TEXT_SLATE} !important; }}
+    .stTabs [data-baseweb="tab-list"] {{ gap: 10px !important; }}
+    .stTabs [data-baseweb="tab"] {{ background-color: rgba(30, 41, 59, 0.5) !important; border-radius: 8px 8px 0 0 !important; padding: 10px 20px !important; color: #94A3B8 !important; }}
+    .stTabs [aria-selected="true"] {{ background-color: {PRIMARY_BLUE} !important; color: {BG_DEEP_NAVY} !important; font-weight: 600 !important; }}
+</style>
+""", unsafe_allow_html=True)
+
 current_user = utils.check_login()
 
 st.title("💼 Creator Business Hub")
 st.markdown("Dein roter Faden vom Hobby-Streamer zum professionellen Creator-Setup.")
+st.markdown("---")
 
 t_fahrplan, t_wissen, t_links = st.tabs(["🗺️ Roadmap Checkliste", "📖 Business-Wissen", "🔗 Partner-Links"])
 
-# ------------------------------------------------------------------------------
-# TAB 1: ROADMAP (CHECKLISTE)
-# ------------------------------------------------------------------------------
 with t_fahrplan:
-    st.subheader("🚀 Deine Business-Roadmap")
-    st.markdown("Hake ab, was du erledigt hast. Das Tool speichert deinen Fortschritt.")
+    st.markdown("### 🚀 Deine Business-Roadmap")
     
     progress = utils.load_data("business_progress", dict)
-    
     steps = {
         "step_1": "Hobby vs. Gewerbe geprüft (Pflicht bei Monetarisierung!)",
         "step_2": "Gewerbe angemeldet (Tipp: Kleinunternehmer-Regelung)",
@@ -30,10 +48,8 @@ with t_fahrplan:
     }
     
     for k, v in steps.items():
-        if k not in progress: 
-            progress[k] = False
+        if k not in progress: progress[k] = False
             
-    # Modulares Side-by-Side Design für die Checkliste vs. Fortschrittsbalken
     col_checks, col_score = st.columns([2, 1])
     
     with col_checks:
@@ -53,37 +69,19 @@ with t_fahrplan:
         if prozent == 100:
             st.success("🎉 Komplettes Setup abgeschlossen!")
 
-# ------------------------------------------------------------------------------
-# TAB 2: BUSINESS WISSEN
-# ------------------------------------------------------------------------------
 with t_wissen:
-    st.subheader("📚 Experten-Tipps kompakt")
-    
-    # Kacheln im modernen Look
+    st.markdown("### 📚 Experten-Tipps kompakt")
     with st.expander("⚖️ 1. Wann muss ich ein Gewerbe anmelden?"):
-        st.markdown("""
-        Sobald eine **Gewinnerzielungsabsicht** vorliegt, musst du ein Gewerbe anmelden. 
-        Sobald du z.B. den Affiliate-Status bei Twitch annimmst oder YouTube-Monetarisierung einschaltest, *beabsichtigst* du, Geld zu verdienen. Das kostet beim Gewerbeamt deiner Stadt ca. 15–40 € und dauert 10 Minuten. Nutze als Anfänger die **Kleinunternehmerregelung**.
-        """)
-        
+        st.markdown("Sobald eine **Gewinnerzielungsabsicht** vorliegt, musst du ein Gewerbe anmelden. Nutze als Anfänger die Kleinunternehmerregelung.")
     with st.expander("📧 2. Die professionelle Business-Mail"):
-        st.markdown("""
-        Sichere dir eine eigene Domain (z.B. `deincreatorname.de`) bei Anbietern wie Strato oder Ionos. Richte dir dort eine Mailadresse ein, wie z.B. `business@deincreatorname.de`. Das erhöht deine Chancen auf Zusagen von Marken drastisch!
-        """)
-
+        st.markdown("Sichere dir eine eigene Domain (z.B. `deincreatorname.de`). Das erhöht deine Chancen auf Zusagen von Marken drastisch!")
     with st.expander("🔗 3. Die 'Link-in-Bio'-Falle"):
-        st.markdown("""
-        Viele US-Tools wie Linktree sind in Deutschland wegen der DSGVO datenschutzrechtlich schwierig. Am sichersten ist eine eigene, kleine, cleane Website für deine Links.
-        """)
+        st.markdown("Viele US-Tools sind in Deutschland datenschutzrechtlich schwierig. Am sichersten ist eine eigene, kleine Website für deine Links.")
 
-# ------------------------------------------------------------------------------
-# TAB 3: PARTNER-LINKS
-# ------------------------------------------------------------------------------
 with t_links:
-    st.subheader("🔗 Affiliate- & Partner-Links verwalten")
+    st.markdown("### 🔗 Affiliate- & Partner-Links verwalten")
     
     with st.form("add_link_form", clear_on_submit=True):
-        # Side-by-Side Eingabe
         c1, c2 = st.columns(2)
         with c1:
             name = st.text_input("Name des Partners / Produkts", placeholder="z.B. Mein Mikrofon")
@@ -92,6 +90,7 @@ with t_links:
             url = st.text_input("Dein Affiliate-Link", placeholder="https://...")
             code = st.text_input("Rabatt-Code (falls vorhanden)", placeholder="z.B. CREATOR10")
             
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.form_submit_button("💾 Link speichern", type="primary", use_container_width=True):
             if name and url:
                 links = utils.load_data("affiliate_links", list)
@@ -100,7 +99,7 @@ with t_links:
                 st.success("✅ Partner-Link gespeichert!")
                 st.rerun()
             else:
-                st.error("Bitte Partner-Name und Link ausfüllen.")
+                st.error("⚠️ Bitte Partner-Name und Link ausfüllen.")
     
     st.markdown("---")
     
@@ -109,20 +108,16 @@ with t_links:
         st.info("Noch keine Partner-Links hinterlegt.")
     else:
         df_links = pd.DataFrame(links)
-        # Sortieren nach Kategorie
         for kat, sub_df in df_links.groupby("kategorie"):
             st.markdown(f"#### 📁 {kat}")
             for _, row in sub_df.iterrows():
-                # Side-by-Side Darstellung der gespeicherten Links
                 col_view1, col_view2 = st.columns([3, 1])
                 with col_view1:
                     st.markdown(f"**{row['name']}**")
                     st.code(row['url'])
-                    if row.get('code'):
-                        st.markdown(f"Code: `{row['code']}`")
+                    if row.get('code'): st.markdown(f"Code: `{row['code']}`")
                 with col_view2:
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if st.button("🗑️", key=f"del_{row['name']}", use_container_width=True):
+                    if st.button("🗑️ Löschen", key=f"del_{row['name']}", use_container_width=True):
                         links = [l for l in links if l['name'] != row['name']]
                         utils.save_data("affiliate_links", links)
                         st.rerun()
