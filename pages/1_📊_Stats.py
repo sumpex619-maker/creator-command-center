@@ -7,7 +7,7 @@ import requests
 current_user = utils.check_login()
 
 # ==============================================================================
-# HILFSFUNKTION: TWITCH API LOGIK (Direkt im Script um Abstürze zu verhindern)
+# HILFSFUNKTION: TWITCH API LOGIK
 # ==============================================================================
 def get_twitch_data_safe(username):
     try:
@@ -18,7 +18,7 @@ def get_twitch_data_safe(username):
         client_id = tw_creds["channel_id"]
         client_secret = tw_creds["api_key"]
         
-        # Lade den Kanalnamen aus der separaten Config
+        # Lade den Kanalnamen und manuelle Werte aus der Config
         tw_config = utils.load_data(f"tw_config_{username}", dict)
         channel_name = tw_config.get("channel_name", "")
         
@@ -52,7 +52,11 @@ def get_twitch_data_safe(username):
         foll_res = requests.get(f'https://api.twitch.tv/helix/channels/followers?broadcaster_id={user_id}', headers=headers).json()
         followers = foll_res.get('total', "API-Limit")
         
-        return {"followers": followers, "subs": "Privat 🔒", "views": "Entfernt 🔒"}, None
+        # 4. Lade die manuell eingetragenen Werte für Subs und Views
+        manual_subs = tw_config.get("manual_subs", 0)
+        manual_views = tw_config.get("manual_views", 0)
+        
+        return {"followers": followers, "subs": manual_subs, "views": manual_views}, None
         
     except Exception as e:
         return None, "Verbindungsfehler zur API"
@@ -144,7 +148,6 @@ with col_live_yt:
 
 with col_live_tw:
     st.markdown("### 🟪 Twitch Live-Metriken")
-    # HIER IST DER FIX: Nutzt jetzt die absturzsichere Funktion von oben
     tw_stats, tw_error = get_twitch_data_safe(current_user)
     if tw_stats:
         c_tw1, c_tw2, c_tw3 = st.columns(3)
@@ -153,31 +156,21 @@ with col_live_tw:
             f_str = f"{followers:,}" if isinstance(followers, int) else followers
             st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Follower</p><h3 style="margin:5px 0 0 0; color:#A855F7; font-size:24px;">{f_str}</h3></div>', unsafe_allow_html=True)
         with c_tw2:
-            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Abonnenten (Subs)</p><h3 style="margin:5px 0 0 0; color:#6366F1; font-size:20px;">{tw_stats.get("subs", "-")}</h3></div>', unsafe_allow_html=True)
+            subs = tw_stats.get("subs", 0)
+            s_str = f"{subs:,}" if isinstance(subs, int) else subs
+            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Abonnenten (Subs)</p><h3 style="margin:5px 0 0 0; color:#6366F1; font-size:24px;">{s_str}</h3></div>', unsafe_allow_html=True)
         with c_tw3:
-            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Kanal-Aufrufe</p><h3 style="margin:5px 0 0 0; color:#EC4899; font-size:20px;">{tw_stats.get("views", "-")}</h3></div>', unsafe_allow_html=True)
+            t_views = tw_stats.get("views", 0)
+            v_str = f"{t_views:,}" if isinstance(t_views, int) else t_views
+            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Kanal-Aufrufe</p><h3 style="margin:5px 0 0 0; color:#EC4899; font-size:24px;">{v_str}</h3></div>', unsafe_allow_html=True)
     else:
         st.info(f"ℹ️ Twitch Live-Daten inaktiv: {tw_error}")
 
 # --- AUSFÜHRLICHE ERKLÄRUNG UND MANAGER ---
-with st.expander("🔑 API-Schlüssel einrichten & ausführliche Erklärung öffnen"):
-    st.markdown("Hier kannst du deine Schnittstellen verwalten, damit das Dashboard vollautomatisch deine aktuellen Kanalzahlen ausliest.")
-    
-    t_yt, t_tw = st.tabs(["🔴 YouTube API Anleitung & Key", "🟪 Twitch API Anleitung & Key"])
+with st.expander("🔑 API-Schlüssel einrichten & Twitch-Daten verwalten"):
+    t_yt, t_tw = st.tabs(["🔴 YouTube API Setup", "🟪 Twitch API & Manuelle Daten"])
     
     with t_yt:
-        st.markdown("""
-        ### Wie funktioniert die YouTube API?
-        Die YouTube API ermöglicht es diesem Dashboard, deine öffentlich einsehbaren Kanaldaten (Abonnenten, Klicks, Videos) direkt bei Google abzufragen.
-        
-        **Schritt-für-Schritt Anleitung:**
-        1. Öffne die offizielle [Google Cloud Console (Hier klicken)](https://console.cloud.google.com/).
-        2. Melde dich mit deinem Google-Konto an und erstelle oben ein neues, kostenloses Projekt.
-        3. Tippe oben in die Suchleiste **"YouTube Data API v3"** ein und klicke auf **"Aktivieren"**.
-        4. Navigiere im linken Menü zu **Anmeldedaten** -> Klicke auf **"+ Anmeldedaten erstellen"** -> Wähle **"API-Schlüssel"**. Kopiere diesen.
-        5. Deine **Kanal-ID** findest du auf YouTube unter *Kanal anpassen* -> *Basisinfo* ganz unten. Sie beginnt immer mit `UC`.
-        """)
-        
         existing_creds = utils.load_api_credentials(current_user, "YouTube")
         ex_channel = existing_creds["channel_id"] if existing_creds else ""
         ex_key = existing_creds["api_key"] if existing_creds else ""
@@ -192,38 +185,34 @@ with st.expander("🔑 API-Schlüssel einrichten & ausführliche Erklärung öff
                     time.sleep(0.5); st.rerun()
                     
     with t_tw:
-        st.markdown("""
-        ### Wie funktioniert die Twitch API?
-        Die Twitch API benötigt eine registrierte App-Verbindung, um deine aktuellen Follower sicher auszulesen.
-        
-        **Schritt-für-Schritt Anleitung:**
-        1. Öffne die offizielle [Twitch Entwickler-Konsole (Hier klicken)](https://dev.twitch.tv/console).
-        2. Klicke rechts auf **"+ Deine Anwendung registrieren"**.
-        3. Trage einen Wunschnamen ein. 
-        4. Füge bei **OAuth Redirect URLs** exakt diese Adresse ein: `https://creator-command-center.streamlit.app` und klicke auf **Add**.
-        5. Wähle als Kategorie **"Application Integration"** aus und klicke auf **Erstellen**.
-        6. Klicke bei deiner neuen App auf **Verwalten**. Kopiere die **Client-ID**.
-        7. Klicke direkt darunter auf **"Neues Secret"**, um das Passwort zu generieren. Kopiere es sofort.
-        """)
-        
         tw_creds = utils.load_api_credentials(current_user, "Twitch")
         tw_config = utils.load_data(f"tw_config_{current_user}", dict)
         
         with st.form("tw_api_form"):
-            # NEU: Der Kanalname wird jetzt abgefragt!
+            st.markdown("**1. Schnittstellen-Datenbank (Für automatische Follower)**")
             tw_name = st.text_input("Dein Twitch Kanalname", value=tw_config.get("channel_name", ""), placeholder="z.B. DeinName")
             tw_id = st.text_input("Twitch Client-ID", value=tw_creds["channel_id"] if tw_creds else "")
             tw_sec = st.text_input("Twitch Client Secret", value=tw_creds["api_key"] if tw_creds else "", type="password")
             
-            if st.form_submit_button("💾 Twitch Daten sichern", use_container_width=True):
+            st.markdown("---")
+            st.markdown("**2. Manuelle Metriken (Da Twitch diese Daten blockiert)**")
+            c_man1, c_man2 = st.columns(2)
+            with c_man1:
+                tw_subs = st.number_input("Aktuelle Abonnenten (Subs)", min_value=0, value=int(tw_config.get("manual_subs", 0)))
+            with c_man2:
+                tw_views = st.number_input("Kanal-Aufrufe", min_value=0, value=int(tw_config.get("manual_views", 0)))
+            
+            if st.form_submit_button("💾 Twitch Daten komplett speichern", use_container_width=True):
                 if tw_id and tw_sec and tw_name:
                     utils.save_api_credentials(current_user, "Twitch", tw_id, tw_sec)
                     tw_config["channel_name"] = tw_name
+                    tw_config["manual_subs"] = tw_subs
+                    tw_config["manual_views"] = tw_views
                     utils.save_data(f"tw_config_{current_user}", tw_config)
-                    st.success("✅ Twitch-API-Zugangsdaten erfolgreich hinterlegt!")
+                    st.success("✅ Twitch-Einstellungen erfolgreich hinterlegt!")
                     time.sleep(0.5); st.rerun()
                 else:
-                    st.error("Bitte fülle alle 3 Felder aus!")
+                    st.error("Bitte fülle die API-Felder vollständig aus!")
 
 st.markdown("---")
 
@@ -235,44 +224,52 @@ st.subheader("📈 Beitrags-Performance & Interaktionsrate")
 if stats_data:
     chart_rows = []
     for p_id, p_info in stats_data.items():
+        # SICHERHEITS-CHECK: Verhindert Absturz durch kaputte Legacy-Einträge
+        if not isinstance(p_info, dict):
+            continue
+            
         v = p_info.get("views", 0)
         interactions = p_info.get("likes", 0) + p_info.get("comments", 0) + p_info.get("shares", 0)
         er = (interactions / v * 100) if v > 0 else 0.0
         
         chart_rows.append({
-            "Beitrag": p_info["title"],
-            "Format": p_info["format"],
+            "Beitrag": p_info.get("title", "Ohne Titel"),
+            "Format": p_info.get("format", "Unbekannt"),
             "Aufrufe / Ø Zuschauer": v,
             "Likes / Neue Subs": p_info.get("likes", 0),
             "Kommentare / Neue Follower": p_info.get("comments", 0),
             "Shares / Peak": p_info.get("shares", 0),
             "Interaktionsrate (%)": round(er, 2)
         })
-    df_stats = pd.DataFrame(chart_rows)
-    
-    c_ctrl1, c_ctrl2 = st.columns([3, 2])
-    with c_ctrl1:
-        ausgewaehlte_metrik = st.selectbox(
-            "📊 Welche Metrik möchtest du im Diagramm vergleichen?",
-            ["Aufrufe / Ø Zuschauer", "Likes / Neue Subs", "Kommentare / Neue Follower", "Shares / Peak", "Interaktionsrate (%)"]
-        )
-    
-    df_chart = df_stats.set_index("Beitrag")[[ausgewaehlte_metrik]]
-    st.bar_chart(df_chart, color=PRIM, use_container_width=True)
-    
-    st.markdown("**🎯 Durchschnittliche Interaktionsrate nach Inhaltstyp:**")
-    df_avg_er = df_stats.groupby("Format")["Interaktionsrate (%)"].mean().round(2)
-    c_fmt1, c_fmt2, c_fmt3 = st.columns(3)
-    
-    with c_fmt1:
-        val = df_avg_er.get("Short / Reel / TikTok", 0.0)
-        st.markdown(f"🎬 **Shorts/Reels:** ` {val}% Ø Rate `")
-    with c_fmt2:
-        val = df_avg_er.get("Normaler Post / Video", 0.0)
-        st.markdown(f"📹 **Videos/Posts:** ` {val}% Ø Rate `")
-    with c_fmt3:
-        val = df_avg_er.get("Livestream", 0.0)
-        st.markdown(f"📺 **Livestreams:** ` {val}% Ø Rate `")
+        
+    if chart_rows:
+        df_stats = pd.DataFrame(chart_rows)
+        
+        c_ctrl1, c_ctrl2 = st.columns([3, 2])
+        with c_ctrl1:
+            ausgewaehlte_metrik = st.selectbox(
+                "📊 Welche Metrik möchtest du im Diagramm vergleichen?",
+                ["Aufrufe / Ø Zuschauer", "Likes / Neue Subs", "Kommentare / Neue Follower", "Shares / Peak", "Interaktionsrate (%)"]
+            )
+        
+        df_chart = df_stats.set_index("Beitrag")[[ausgewaehlte_metrik]]
+        st.bar_chart(df_chart, color=PRIM, use_container_width=True)
+        
+        st.markdown("**🎯 Durchschnittliche Interaktionsrate nach Inhaltstyp:**")
+        df_avg_er = df_stats.groupby("Format")["Interaktionsrate (%)"].mean().round(2)
+        c_fmt1, c_fmt2, c_fmt3 = st.columns(3)
+        
+        with c_fmt1:
+            val = df_avg_er.get("Short / Reel / TikTok", 0.0)
+            st.markdown(f"🎬 **Shorts/Reels:** ` {val}% Ø Rate `")
+        with c_fmt2:
+            val = df_avg_er.get("Normaler Post / Video", 0.0)
+            st.markdown(f"📹 **Videos/Posts:** ` {val}% Ø Rate `")
+        with c_fmt3:
+            val = df_avg_er.get("Livestream", 0.0)
+            st.markdown(f"📺 **Livestreams:** ` {val}% Ø Rate `")
+    else:
+        st.info("Keine lesbaren Statistiken gefunden. Füge unten neue hinzu.")
 else:
     st.info("📊 Sobald du unten Posts einträgst, erscheinen hier die präzisen Einzel-Diagramme.")
 
@@ -283,7 +280,6 @@ st.markdown("---")
 # ==============================================================================
 col_eingabe, col_historie = st.columns([2, 3], gap="large")
 
-# --- LINKS: VOLLKOMMEN FLEXIBLE & INTELLIGENTE EINGABE ---
 with col_eingabe:
     st.subheader("📝 Daten erfassen")
     
@@ -327,7 +323,6 @@ with col_eingabe:
                 st.success("🎉 Beitrag erfolgreich archiviert!")
                 time.sleep(0.3); st.rerun()
 
-# --- RECHTS: VERLAUF MIT EDITIER-OPTION ---
 with col_historie:
     st.subheader("📋 Beitrags-Archiv & Reports")
     
@@ -337,6 +332,10 @@ with col_historie:
         sorted_posts = sorted(stats_data.items(), key=lambda x: x[0], reverse=True)
         
         for p_id, p_info in sorted_posts:
+            # SICHERHEITS-CHECK: Ignoriert defekte Einträge im Archiv
+            if not isinstance(p_info, dict):
+                continue
+                
             plt_lower = p_info.get("platform", "").lower()
             if "twitch" in plt_lower: format_emoji = "🟪"
             elif "youtube" in plt_lower: format_emoji = "🔴"
@@ -344,7 +343,7 @@ with col_historie:
             elif "instagram" in plt_lower: format_emoji = "📸"
             elif "kick" in plt_lower: format_emoji = "🟢"
             elif "twitter" in plt_lower or "x (" in plt_lower: format_emoji = "🐦"
-            else: format_emoji = "🎬" if "Short" in p_info["format"] else "📹"
+            else: format_emoji = "🎬" if "Short" in p_info.get("format", "") else "📹"
             
             is_livestream = p_info.get("format") == "Livestream"
             
@@ -357,17 +356,17 @@ with col_historie:
                 st.session_state[edit_state_key] = False
                 
             with st.container(border=True):
-                st.markdown(f"### {format_emoji} {p_info['title']}")
-                st.markdown(f"📅 {p_info['date']} | 🌐 `{p_info['platform']}` | 📁 `{p_info['format']}`")
+                st.markdown(f"### {format_emoji} {p_info.get('title', 'Ohne Titel')}")
+                st.markdown(f"📅 {p_info.get('date', '-')} | 🌐 `{p_info.get('platform', '-')}` | 📁 `{p_info.get('format', '-')}`")
                 
                 m1, m2, m3 = st.columns(3)
                 if is_livestream:
-                    m1.metric("🎥 Ø Zuschauer (CCV)", f"{p_info['views']:,}")
-                    m2.metric("💎 Neue Subs", f"{p_info['likes']:,}")
+                    m1.metric("🎥 Ø Zuschauer (CCV)", f"{p_info.get('views', 0):,}")
+                    m2.metric("💎 Neue Subs", f"{p_info.get('likes', 0):,}")
                     m3.metric("🎯 Aktivitätsrate", f"{er_single:.2f}%")
                 else:
-                    m1.metric("👀 Views", f"{p_info['views']:,}")
-                    m2.metric("❤️ Likes", f"{p_info['likes']:,}")
+                    m1.metric("👀 Views", f"{p_info.get('views', 0):,}")
+                    m2.metric("❤️ Likes", f"{p_info.get('likes', 0):,}")
                     m3.metric("📈 Interaktionsrate", f"{er_single:.2f}%")
                 
                 st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
@@ -376,13 +375,21 @@ with col_historie:
                     st.markdown("---")
                     st.markdown("**✏️ Daten anpassen**")
                     with st.form(f"form_edit_stat_{p_id}"):
-                        edit_title = st.text_input("Titel", value=p_info["title"])
-                        edit_platform = st.selectbox("Plattform", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"], index=["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"].index(p_info["platform"]) if p_info["platform"] in ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"] else 0)
-                        edit_format = st.selectbox("Format", ["Normaler Post / Video", "Short / Reel / TikTok", "Livestream"], index=["Normaler Post / Video", "Short / Reel / TikTok", "Livestream"].index(p_info["format"]) if p_info["format"] in ["Normaler Post / Video", "Short / Reel / TikTok", "Livestream"] else 0)
+                        edit_title = st.text_input("Titel", value=p_info.get("title", ""))
+                        
+                        plat_options = ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"]
+                        current_plat = p_info.get("platform", "Allgemein")
+                        plat_index = plat_options.index(current_plat) if current_plat in plat_options else 0
+                        edit_platform = st.selectbox("Plattform", plat_options, index=plat_index)
+                        
+                        fmt_options = ["Normaler Post / Video", "Short / Reel / TikTok", "Livestream"]
+                        current_fmt = p_info.get("format", "Normaler Post / Video")
+                        fmt_index = fmt_options.index(current_fmt) if current_fmt in fmt_options else 0
+                        edit_format = st.selectbox("Format", fmt_options, index=fmt_index)
                         
                         ce1, ce2 = st.columns(2)
                         with ce1:
-                            edit_views = st.number_input("Views / Ø Zuschauer", min_value=0, value=p_info["views"])
+                            edit_views = st.number_input("Views / Ø Zuschauer", min_value=0, value=p_info.get("views", 0))
                             edit_comments = st.number_input("Kommentare / Neue Follower", min_value=0, value=p_info.get("comments", 0))
                         with ce2:
                             edit_likes = st.number_input("Likes / Neue Subs", min_value=0, value=p_info.get("likes", 0))
@@ -394,7 +401,7 @@ with col_historie:
                                 stats_data[p_id] = {
                                     "title": edit_title, "format": edit_format, "platform": edit_platform,
                                     "views": edit_views, "likes": edit_likes, "comments": edit_comments, "shares": edit_shares,
-                                    "date": p_info["date"]
+                                    "date": p_info.get("date", time.strftime("%d.%m.%Y"))
                                 }
                                 utils.save_data(f"stats_{current_user}", stats_data)
                                 st.session_state[edit_state_key] = False
@@ -418,10 +425,10 @@ with col_historie:
                                 
                                 if is_livestream:
                                     discord_msg = (
-                                        f"{role_ping}🟪 **{p_info['platform'].upper()} STREAM REPORT** 🟪\n\n"
-                                        f"📌 **Stream:** {p_info['title']}\n"
+                                        f"{role_ping}🟪 **{p_info.get('platform', '').upper()} STREAM REPORT** 🟪\n\n"
+                                        f"📌 **Stream:** {p_info.get('title', '')}\n"
                                         f"----------------------------------------\n"
-                                        f"🎥 **Ø Zuschauer (CCV):** {p_info['views']:,}\n"
+                                        f"🎥 **Ø Zuschauer (CCV):** {p_info.get('views', 0):,}\n"
                                         f"🔥 **Peak Zuschauer:** {p_info.get('shares', 0):,}\n"
                                         f"💜 **Neue Follower:** {p_info.get('comments', 0):,}\n"
                                         f"💎 **Neue Subs:** {p_info.get('likes', 0):,}\n"
@@ -430,12 +437,12 @@ with col_historie:
                                     )
                                 else:
                                     discord_msg = (
-                                        f"{role_ping}📊 **{p_info['platform'].upper()} PERFORMANCE REPORT** 📊\n\n"
-                                        f"📌 **Beitrag:** {p_info['title']}\n"
-                                        f"🌐 **Plattform:** {p_info['platform']} | {format_emoji} **Format:** {p_info['format']}\n"
+                                        f"{role_ping}📊 **{p_info.get('platform', '').upper()} PERFORMANCE REPORT** 📊\n\n"
+                                        f"📌 **Beitrag:** {p_info.get('title', '')}\n"
+                                        f"🌐 **Plattform:** {p_info.get('platform', '')} | {format_emoji} **Format:** {p_info.get('format', '')}\n"
                                         f"----------------------------------------\n"
-                                        f"👀 **Aufrufe (Views):** {p_info['views']:,}\n"
-                                        f"❤️ **Gefällt mir (Likes):** {p_info['likes']:,}\n"
+                                        f"👀 **Aufrufe (Views):** {p_info.get('views', 0):,}\n"
+                                        f"❤️ **Gefällt mir (Likes):** {p_info.get('likes', 0):,}\n"
                                         f"💬 **Kommentare:** {p_info.get('comments', 0):,}\n"
                                         f"🔗 **Teilungen (Shares):** {p_info.get('shares', 0):,}\n"
                                         f"🎯 **Interaktionsrate:** {er_single:.2f}%\n\n"
