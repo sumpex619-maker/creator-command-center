@@ -187,27 +187,42 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-def create_safe_link(filepath, label, icon="👉"):
-    if os.path.exists(filepath):
-        st.page_link(filepath, label=label, icon=icon)
+# ==============================================================================
+# SMARTE DASHBOARD VERLINKUNG (Findet Dateien automatisch)
+# ==============================================================================
+def create_dynamic_link(keyword, label, icon="👉"):
+    """Durchsucht den pages-Ordner automatisch nach dem passenden Dateinamen."""
+    found_path = None
+    if os.path.exists("pages"):
+        for file in os.listdir("pages"):
+            if keyword.lower() in file.lower() and file.endswith(".py"):
+                found_path = f"pages/{file}"
+                break
+                
+    if found_path:
+        st.page_link(found_path, label=label, icon=icon)
     else:
-        st.error(f"⚠️ Datei fehlt oder heißt falsch: `{filepath}`")
+        st.error(f"⚠️ Datei für '{label}' fehlt im Ordner.")
 
 c1, c2, c3 = st.columns(3)
+
 with c1:
     st.markdown('<div class="bento-card"><h4>📊 Stats & Analytics</h4><p style="font-size: 14px; opacity:0.8;">Twitch & YouTube Reichweite tracken.</p></div>', unsafe_allow_html=True)
-    create_safe_link("pages/2_📊_Stats.py", "Stats öffnen", "📈")
+    create_dynamic_link("stats", "Stats öffnen", "📈")
+    
     st.markdown('<div class="bento-card" style="margin-top:20px;"><h4>🗓️ Sendeplan</h4><p style="font-size: 14px; opacity:0.8;">Plane deine Streams und Events.</p></div>', unsafe_allow_html=True)
-    create_safe_link("pages/4_🗓️_Sendeplan.py", "Planer öffnen", "📅")
+    create_dynamic_link("sendeplan", "Planer öffnen", "📅")
 
 with c2:
     st.markdown('<div class="bento-card"><h4>📝 Ideen & ToDos</h4><p style="font-size: 14px; opacity:0.8;">Keywords und Skripte speichern.</p></div>', unsafe_allow_html=True)
-    create_safe_link("pages/1_📝_Ideen_und_ToDos.py", "Ideen öffnen", "💡")
+    create_dynamic_link("ideen", "Ideen öffnen", "💡")
+    
     st.markdown('<div class="bento-card" style="margin-top:20px;"><h4>📢 Post Creator</h4><p style="font-size: 14px; opacity:0.8;">Sende Alerts an deinen Discord.</p></div>', unsafe_allow_html=True)
-    create_safe_link("pages/7_📢_Post_Creator.py", "Posten", "🚀")
+    create_dynamic_link("post_creator", "Posten", "🚀")
 
 with c3:
     st.markdown('<div class="bento-card"><h4>💼 Business Hub</h4><p style="font-size: 14px; opacity:0.8;">Steuern, Links und Setup.</p></div>', unsafe_allow_html=True)
-    create_safe_link("pages/6_💼_Business_Hub.py", "Business öffnen", "🤝")
+    create_dynamic_link("business", "Business öffnen", "🤝")
+    
     st.markdown('<div class="bento-card" style="margin-top:20px;"><h4>🎓 Creator Academy</h4><p style="font-size: 14px; opacity:0.8;">Guides für Bots, Alerts & Co.</p></div>', unsafe_allow_html=True)
-    create_safe_link("pages/8_🎓_Creator_Academy.py", "Lernen", "📚")
+    create_dynamic_link("academy", "Lernen", "📚")
