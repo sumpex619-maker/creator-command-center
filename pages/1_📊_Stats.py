@@ -102,7 +102,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# DATEN MANAGEMENT (Nur noch Stats, kein Discord mehr)
+# DATEN MANAGEMENT 
 # ==============================================================================
 stats_data = utils.load_data(f"stats_{current_user}", dict)
 
@@ -167,7 +167,7 @@ with st.expander("⚙️ API-Schlüssel verwalten"):
 st.markdown("---")
 
 # ==============================================================================
-# EBENE 2: DIE ENTWICKLUNGS-ÜBERSICHT (Visualisierung)
+# EBENE 2: DIE ENTWICKLUNGS-ÜBERSICHT (Visualisierung & Filter)
 # ==============================================================================
 st.subheader("📈 Deine Entwicklung im Überblick")
 
@@ -180,28 +180,47 @@ if stats_data:
     sorted_for_chart = sorted(valid_posts.items(), key=lambda x: x[0])
     
     for p_id, p_info in sorted_for_chart:
+        v = p_info.get("views", 0)
+        inter = p_info.get("likes", 0) + p_info.get("comments", 0) + p_info.get("shares", 0)
+        er = (inter / v * 100) if v > 0 else 0.0
+        
         chart_rows.append({
             "Eintrag": p_info.get("title", "Ohne Titel"),
-            "Aufrufe / Ø Zuschauer": p_info.get("views", 0),
+            "Aufrufe / Ø Zuschauer": v,
             "Likes / Subs": p_info.get("likes", 0),
             "Kommentare / Follower": p_info.get("comments", 0),
             "Shares / Peak": p_info.get("shares", 0),
+            "Interaktionsrate (%)": round(er, 2),
             "Plattform": p_info.get("platform", "Allgemein")
         })
         
     if chart_rows:
         df_stats = pd.DataFrame(chart_rows)
         
-        c_ctrl1, c_ctrl2 = st.columns([3, 2])
-        with c_ctrl1:
-            ausgewaehlte_metrik = st.selectbox(
-                "Welche Metrik möchtest du vergleichen?",
-                ["Aufrufe / Ø Zuschauer", "Likes / Subs", "Kommentare / Follower", "Shares / Peak"]
-            )
+        # Filter-Optionen generieren
+        verfuegbare_plattformen = ["Alle"] + sorted(list(set(df_stats["Plattform"].tolist())))
         
-        # Liniendiagramm zeigt die Entwicklung chronologisch
-        df_chart = df_stats.set_index("Eintrag")[[ausgewaehlte_metrik]]
-        st.line_chart(df_chart, color=PRIM, use_container_width=True)
+        c_filter, c_metric = st.columns([2, 3])
+        with c_filter:
+            gewaehlte_plattform = st.selectbox("🔍 Nach Plattform filtern", verfuegbare_plattformen)
+        with c_metric:
+            ausgewaehlte_metrik = st.selectbox(
+                "📊 Welche Metrik anzeigen?",
+                ["Aufrufe / Ø Zuschauer", "Interaktionsrate (%)", "Likes / Subs", "Kommentare / Follower", "Shares / Peak"]
+            )
+            
+        # Daten filtern, falls nicht "Alle" ausgewählt ist
+        if gewaehlte_plattform != "Alle":
+            df_chart_data = df_stats[df_stats["Plattform"] == gewaehlte_plattform]
+        else:
+            df_chart_data = df_stats
+            
+        if not df_chart_data.empty:
+            # Liniendiagramm rendern
+            df_chart = df_chart_data.set_index("Eintrag")[[ausgewaehlte_metrik]]
+            st.line_chart(df_chart, color=PRIM, use_container_width=True)
+        else:
+            st.info(f"Keine Daten für die Plattform '{gewaehlte_plattform}' gefunden.")
     else:
         st.info("Deine gespeicherten Daten sind fehlerhaft. Bitte lege neue an.")
 else:
@@ -271,8 +290,13 @@ with col_historie:
             else: icon = "🎬"
             
             is_live = p_info.get("format") == "Livestream"
-            edit_key = f"edit_{p_id}"
             
+            # Interaktionsrate für das Archiv berechnen
+            v_single = p_info.get("views", 0)
+            inter_single = p_info.get("likes", 0) + p_info.get("comments", 0) + p_info.get("shares", 0)
+            er_single = (inter_single / v_single * 100) if v_single > 0 else 0.0
+            
+            edit_key = f"edit_{p_id}"
             if edit_key not in st.session_state:
                 st.session_state[edit_key] = False
                 
@@ -313,9 +337,9 @@ with col_historie:
                             if st.form_submit_button("Abbrechen", use_container_width=True):
                                 st.session_state[edit_key] = False; st.rerun()
                                 
-                # Normale Ansicht (Werte-Raster)
+                # Normale Ansicht (Werte-Raster + Interaktionsrate)
                 else:
-                    m1, m2, m3, m4 = st.columns(4)
+                    m1, m2, m3, m4, m5 = st.columns(5)
                     if is_live:
                         m1.metric("Ø CCV", f"{p_info.get('views', 0)}")
                         m2.metric("Subs", f"{p_info.get('likes', 0)}")
@@ -326,3 +350,6 @@ with col_historie:
                         m2.metric("Likes", f"{p_info.get('likes', 0)}")
                         m3.metric("Comms", f"{p_info.get('comments', 0)}")
                         m4.metric("Shares", f"{p_info.get('shares', 0)}")
+                    
+                    # Fünfte Spalte ist immer die Interaktionsrate
+                    m5.metric("Rate", f"{er_single:.1f}%")
