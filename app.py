@@ -1,137 +1,109 @@
 import streamlit as st
+import utils
+import os
+
+st.set_page_config(page_title="Creator Command Center", page_icon="🚀", layout="wide", initial_sidebar_state="collapsed")
+utils.apply_modern_css()
+
+if "logged_in" not in st.session_state: st.session_state["logged_in"] = False
+if "username" not in st.session_state: st.session_state["username"] = ""
 
 # ==============================================================================
-# 1. GRUNDSETUP
+# BEREICH: AUSGELOGGT (LOGIN)
 # ==============================================================================
-st.set_page_config(page_title="Command Center", page_icon="🚀", layout="wide", initial_sidebar_state="collapsed")
-
-# Verstecke Streamlit-Standardelemente (Sidebar, Header, Footer)
-st.markdown("""
-    <style>
-        [data-testid="collapsedControl"] { display: none; }
-        [data-testid="stHeader"] { display: none; }
-        footer { display: none; }
-    </style>
-""", unsafe_allow_html=True)
-
-# ==============================================================================
-# 2. CINEMATIC DARK DESIGN-SYSTEM
-# ==============================================================================
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
-
-    .stApp {
-        background-color: #050508 !important;
-        color: #E0E0E0 !important;
-        font-family: 'Space Grotesk', sans-serif !important;
-        background-image: radial-gradient(circle at 50% -20%, #1a0b2e 0%, #050508 50%);
-    }
-
-    h1, h2, h3 { color: #FFFFFF !important; text-transform: uppercase; letter-spacing: 1px; }
-    h1 span { color: #00E5FF; text-shadow: 0 0 10px rgba(0, 229, 255, 0.5); }
-
-    /* Container Boxen */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background-color: #0A0A10 !important;
-        border: 1px solid #1c1c28 !important;
-        border-radius: 4px !important;
-        padding: 20px !important;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
-        transition: all 0.3s ease;
-    }
-    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-        border-color: #00E5FF !important;
-        box-shadow: 0 0 20px rgba(0, 229, 255, 0.15) !important;
-    }
-
-    /* Top-Navigation Buttons (Inaktiv) */
-    .stButton>button {
-        background-color: #0A0A10 !important;
-        color: #6c757d !important;
-        border: 1px solid #1c1c28 !important;
-        border-radius: 4px !important;
-        text-transform: uppercase;
-        font-weight: 600 !important;
-        letter-spacing: 1px;
-        transition: all 0.2s;
-    }
+if not st.session_state["logged_in"]:
+    st.markdown("<div style='text-align: center; margin-top: 5vh; margin-bottom: 40px;'><h1 style='font-size: 50px;'>Creator <span style='color: #00E5FF; text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);'>Command Center</span></h1><p style='font-size: 18px; color: #888;'>System Online. Bitte autorisieren.</p></div>", unsafe_allow_html=True)
     
-    /* Hover & Aktiv (Primary) Status */
-    .stButton>button:hover {
-        color: #00E5FF !important;
-        border-color: #00E5FF !important;
-        box-shadow: 0 0 15px rgba(0, 229, 255, 0.2) !important;
-    }
-    .stButton>button[kind="primary"] {
-        background-color: rgba(0, 229, 255, 0.1) !important;
-        color: #00E5FF !important;
-        border: 1px solid #00E5FF !important;
-        box-shadow: 0 0 15px rgba(0, 229, 255, 0.4) !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+    _, col_auth, _ = st.columns([1, 1.5, 1])
+    with col_auth:
+        t_login, t_register = st.tabs(["🔒 SYSTEM LOGIN", "📝 NEUER NUTZER"])
+        
+        with t_login:
+            with st.container(border=True):
+                with st.form("login_form"):
+                    u = st.text_input("Benutzername")
+                    p = st.text_input("Passwort", type="password")
+                    if st.form_submit_button("Uplink Herstellen", type="primary", use_container_width=True):
+                        if u and p:
+                            conn = utils.get_db_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (u, utils.hash_password(p)))
+                            if cursor.fetchone():
+                                st.session_state["logged_in"], st.session_state["username"] = True, u
+                                st.rerun()
+                            else: st.error("❌ Zugriff verweigert.")
+                            cursor.close(); conn.close()
+                            
+        with t_register:
+            with st.container(border=True):
+                with st.form("reg_form"):
+                    nu = st.text_input("Neuer Benutzername")
+                    np = st.text_input("Sicheres Passwort", type="password")
+                    if st.form_submit_button("Registrieren", use_container_width=True):
+                        if nu and np:
+                            conn = utils.get_db_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("SELECT username FROM users WHERE username = %s", (nu,))
+                            if cursor.fetchone(): st.error("⚠️ Benutzername existiert bereits.")
+                            else:
+                                cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (nu, utils.hash_password(np)))
+                                st.success("🎉 Autorisiert! Bitte im Reiter 'Login' anmelden.")
+                            cursor.close(); conn.close()
+    st.stop()
 
 # ==============================================================================
-# 3. STATE MANAGEMENT (Welche Seite ist aktiv?)
+# BEREICH: EINGELOGGT (DAS DASHBOARD)
 # ==============================================================================
-if "active_page" not in st.session_state:
-    st.session_state["active_page"] = "🏠 Dashboard"
+with st.sidebar:
+    st.markdown(f"### 👤 {st.session_state['username']}")
+    st.markdown("---")
+    if st.button("🚪 Ausloggen", use_container_width=True):
+        st.session_state["logged_in"], st.session_state["username"] = False, ""
+        st.rerun()
 
-# ==============================================================================
-# 4. TOP NAVIGATION
-# ==============================================================================
-st.markdown("<h1>Creator <span>Command Center</span></h1>", unsafe_allow_html=True)
-st.markdown("<br>", unsafe_allow_html=True)
-
-# Menüpunkte definieren
-menu_items = ["🏠 Dashboard", "📊 Stats", "🗓️ Sendeplan", "📝 Ideen", "📢 Post Creator", "💼 Setup"]
-
-# Spalten für die Buttons erstellen
-cols = st.columns(len(menu_items))
-
-for i, item in enumerate(menu_items):
-    # Wenn der Button geklickt wird UND er noch nicht die aktive Seite ist
-    is_active = st.session_state["active_page"] == item
-    if cols[i].button(item, use_container_width=True, type="primary" if is_active else "secondary"):
-        if not is_active:
-            st.session_state["active_page"] = item
-            st.rerun()
-
+st.markdown(f"<h1>HQ Status: <span style='color: #00E5FF;'>{st.session_state['username']}</span></h1>", unsafe_allow_html=True)
+st.markdown("Wähle ein Modul, um fortzufahren.")
 st.markdown("---")
 
-# ==============================================================================
-# 5. ROUTING (Inhalt basierend auf Auswahl laden)
-# ==============================================================================
+def get_page_path(keyword):
+    if os.path.exists("pages"):
+        for file in os.listdir("pages"):
+            if keyword.lower() in file.lower() and file.endswith(".py"):
+                return f"pages/{file}"
+    return None
 
-if st.session_state["active_page"] == "🏠 Dashboard":
-    st.subheader("System Status")
-    c1, c2 = st.columns(2)
-    with c1:
-        with st.container(border=True):
-            st.markdown("### Willkommen zurück")
-            st.write("Wähle oben im Menü ein Modul aus, um zu starten.")
-    with c2:
-        with st.container(border=True):
-            st.markdown("### Schnellzugriff")
-            st.write("Hier kommen später deine wichtigsten Live-Daten hin.")
+# Die "Knöpfe" sind jetzt die Boxen selbst!
+c1, c2, c3 = st.columns(3)
 
-elif st.session_state["active_page"] == "📊 Stats":
-    st.subheader("Analytics Modul")
-    st.info("Hier bauen wir als nächstes das dynamische, API-freie Stats-Modul ein.")
+with c1:
+    with st.container(border=True):
+        path = get_page_path("stats")
+        if path: st.page_link(path, label="📊 Analytics & Stats")
+        st.markdown("<p style='font-size: 14px; color:#888;'>Manuelles Tracking & Performance Charts.</p>", unsafe_allow_html=True)
+        
+    with st.container(border=True):
+        path = get_page_path("sendeplan")
+        if path: st.page_link(path, label="🗓️ Sendeplan")
+        st.markdown("<p style='font-size: 14px; color:#888;'>Plane deine Streams und Community-Events.</p>", unsafe_allow_html=True)
 
-elif st.session_state["active_page"] == "🗓️ Sendeplan":
-    st.subheader("Sendeplan Modul")
-    st.info("Platzhalter für den Kalender.")
+with c2:
+    with st.container(border=True):
+        path = get_page_path("ideen")
+        if path: st.page_link(path, label="📝 Ideen & ToDos")
+        st.markdown("<p style='font-size: 14px; color:#888;'>SEO-Keywords und Skripte speichern.</p>", unsafe_allow_html=True)
+        
+    with st.container(border=True):
+        path = get_page_path("post")
+        if path: st.page_link(path, label="📢 Post Creator")
+        st.markdown("<p style='font-size: 14px; color:#888;'>Sende Alerts direkt an deinen Discord.</p>", unsafe_allow_html=True)
 
-elif st.session_state["active_page"] == "📝 Ideen":
-    st.subheader("Ideen Modul")
-    st.info("Platzhalter für deine Skripte und Keywords.")
-
-elif st.session_state["active_page"] == "📢 Post Creator":
-    st.subheader("Discord Uplink")
-    st.info("Platzhalter für den Webhook-Sender.")
-
-elif st.session_state["active_page"] == "💼 Setup":
-    st.subheader("System Setup")
-    st.info("Platzhalter für Webhook-Einstellungen und Datenbank-Setup.")
+with c3:
+    with st.container(border=True):
+        path = get_page_path("business")
+        if path: st.page_link(path, label="💼 Business Hub")
+        st.markdown("<p style='font-size: 14px; color:#888;'>Partner-Links, Steuern und Setup.</p>", unsafe_allow_html=True)
+        
+    with st.container(border=True):
+        path = get_page_path("academy")
+        if path: st.page_link(path, label="🎓 Academy")
+        st.markdown("<p style='font-size: 14px; color:#888;'>Guides für Chatbots, Alerts & OBS.</p>", unsafe_allow_html=True)
