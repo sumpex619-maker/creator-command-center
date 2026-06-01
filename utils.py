@@ -5,49 +5,17 @@ import hashlib
 import requests
 import json
 
-# ==============================================================================
-# GLOBALE KONFIGURATION & FARBEN
-# ==============================================================================
 WOCHENTAGE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 
-COLORS = {
-    "Twitch": 9520895,   
-    "YouTube": 16711680, 
-    "Kick": 5504024,     
-    "TikTok": 65793,     
-    "Instagram": 14619428, 
-    "Sendeplan / Kalender": 16766720,
-    "Allgemein": 5793266 
-}
-
-THEME_COLORS = {
-    "Pastell Ozean (Blau)": "#4A90E2",
-    "Salbeigrün": "#779C7B",
-    "Flieder (Lila)": "#9B82C2",
-    "Pfirsichrosa": "#D98880",
-    "Sandbeige": "#C2B280",
-    "Staubiges Rosa": "#C08497",
-    "Sanftes Mint": "#6BBF9F",
-    "Karibik Türkis": "#46A5B8",
-    "Nachtblau": "#34495E",
-    "Warmes Senfgelb": "#D4AC0D"
-}
-
-# ==============================================================================
-# DATABASE CONNECTION (Neon.tech)
-# ==============================================================================
 def get_db_connection():
     db_url = st.secrets["DATABASE_URL"]
-    # autocommit=True verhindert offene Transaktions-Leichen im Pooler
     conn = psycopg2.connect(db_url, cursor_factory=DictCursor)
     conn.autocommit = True
     return conn
 
 def init_db():
-    """Erstellt alle benötigten Tabellen in der Datenbank, falls sie fehlen."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         username TEXT PRIMARY KEY,
@@ -55,7 +23,6 @@ def init_db():
         theme TEXT DEFAULT 'Dark',
         accent TEXT DEFAULT 'Pastell Ozean (Blau)'
     )""")
-    
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS webhooks (
         id SERIAL PRIMARY KEY,
@@ -66,7 +33,6 @@ def init_db():
         role_id TEXT,
         UNIQUE(username, profile_name)
     )""")
-    
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS user_data (
         username TEXT,
@@ -74,8 +40,6 @@ def init_db():
         json_content TEXT,
         PRIMARY KEY (username, data_type)
     )""")
-    
-    # Tabelle für individuelle API-Zugänge der einzelnen Benutzer
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS api_credentials (
         username TEXT,
@@ -84,31 +48,92 @@ def init_db():
         api_key TEXT,
         PRIMARY KEY (username, platform)
     )""")
-    
     cursor.close()
     conn.close()
 
-# Datenbank beim Start prüfen/initialisieren
 init_db()
 
 # ==============================================================================
-# FUNKTIONEN FÜR DIE UNTERSEITEN (DATENBANK-BACKEND)
+# 🎨 ZENTRALES DESIGN-SYSTEM (MODERN 2.0 & SLIDING EFFECTS)
+# ==============================================================================
+def apply_modern_css():
+    if "theme" not in st.session_state: st.session_state["theme"] = "Midnight (Dark)"
+    
+    if st.session_state["theme"] == "Midnight (Dark)":
+        BG_COLOR = "#0B0F19"; SIDEBAR_BG = "#111827"; CARD_BG = "rgba(30, 41, 59, 0.6)"
+        TEXT_COLOR = "#F8FAFC"; BORDER_COLOR = "rgba(255, 255, 255, 0.05)"
+        GLOW = "0 8px 32px 0 rgba(0, 0, 0, 0.37)"
+    else:
+        BG_COLOR = "#F3F4F6"; SIDEBAR_BG = "#FFFFFF"; CARD_BG = "rgba(255, 255, 255, 0.8)"
+        TEXT_COLOR = "#111827"; BORDER_COLOR = "rgba(0, 0, 0, 0.05)"
+        GLOW = "0 8px 32px 0 rgba(31, 38, 135, 0.07)"
+
+    st.markdown(f"""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;600&display=swap');
+        
+        /* Basis */
+        html, body, [class*="css"], .stMarkdown {{ font-family: 'Inter', sans-serif !important; color: {TEXT_COLOR} !important; }}
+        .stApp {{ background-color: {BG_COLOR} !important; background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.05) 0%, transparent 50%); }}
+        h1, h2, h3, h4 {{ font-family: 'Outfit', sans-serif !important; font-weight: 800 !important; color: {TEXT_COLOR} !important; letter-spacing: -0.5px; }}
+        [data-testid="stSidebar"] {{ background-color: {SIDEBAR_BG} !important; border-right: 1px solid {BORDER_COLOR}; }}
+        
+        /* Karten & Container mit Fade/Slide-In */
+        @keyframes slideIn {{
+            from {{ opacity: 0; transform: translateY(15px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        
+        .bento-card, div[data-testid="stExpander"], .stAlert, div[data-testid="stForm"] {{ 
+            background: {CARD_BG} !important; 
+            backdrop-filter: blur(12px) !important; 
+            border-radius: 20px !important; 
+            border: 1px solid {BORDER_COLOR} !important; 
+            padding: 24px !important; 
+            box-shadow: {GLOW} !important;
+            margin-bottom: 15px; 
+            animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }}
+        
+        /* Buttons */
+        .stButton>button {{ 
+            border-radius: 12px !important; 
+            background-color: transparent !important; 
+            color: {TEXT_COLOR} !important; 
+            border: 1px solid rgba(129, 140, 248, 0.5) !important; 
+            font-family: 'Outfit', sans-serif !important; 
+            font-weight: 600 !important;
+            transition: all 0.2s ease-in-out; 
+        }}
+        .stButton>button:hover {{ border-color: #38BDF8 !important; background-color: rgba(56, 189, 248, 0.1) !important; transform: translateY(-2px); }}
+        .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%) !important; border: none !important; color: white !important; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4) !important; }}
+        
+        /* Inputs */
+        .stTextInput>div>div, .stSelectbox>div>div, .stTextArea>div>div, .stNumberInput>div>div {{ 
+            border-radius: 12px !important; background-color: {SIDEBAR_BG} !important; border: 1px solid {BORDER_COLOR} !important; color: {TEXT_COLOR} !important; 
+        }}
+        
+        /* Tabs Styling (Cleaner) */
+        .stTabs [data-baseweb="tab-list"] {{ gap: 15px !important; background: transparent !important; }}
+        .stTabs [data-baseweb="tab"] {{ background-color: transparent !important; border: none !important; color: {TEXT_COLOR} !important; opacity: 0.6; font-family: 'Outfit', sans-serif !important; font-weight: 600 !important; padding-bottom: 10px !important; }}
+        .stTabs [aria-selected="true"] {{ opacity: 1 !important; border-bottom: 2px solid #38BDF8 !important; color: #38BDF8 !important; }}
+    </style>
+    """, unsafe_allow_html=True)
+
+# ==============================================================================
+# DATENBANK & HILFSFUNKTIONEN
 # ==============================================================================
 def load_data(file_or_type, default_factory):
     data_type = file_or_type.replace(".json", "").replace("data_", "")
     if "_" in data_type: 
         parts = data_type.split("_")
         if len(parts) > 2: data_type = parts[-1]
-
     username = st.session_state.get("username", "global")
-    
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT json_content FROM user_data WHERE username = %s AND data_type = %s", (username, data_type))
     row = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    
+    cursor.close(); conn.close()
     if row:
         try: return json.loads(row["json_content"])
         except: return default_factory()
@@ -119,60 +144,33 @@ def save_data(file_or_type, data):
     if "_" in data_type:
         parts = data_type.split("_")
         if len(parts) > 2: data_type = parts[-1]
-        
     username = st.session_state.get("username", "global")
     json_string = json.dumps(data, ensure_ascii=False)
-    
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO user_data (username, data_type, json_content)
         VALUES (%s, %s, %s)
-        ON CONFLICT (username, data_type) 
-        DO UPDATE SET json_content = EXCLUDED.json_content
+        ON CONFLICT (username, data_type) DO UPDATE SET json_content = EXCLUDED.json_content
     """, (username, data_type, json_string))
-    cursor.close()
-    conn.close()
+    cursor.close(); conn.close()
 
-# ==============================================================================
-# HILFSFUNKTIONEN & DISCORD
-# ==============================================================================
 def send_discord_webhook(url, text_content=None, embed_data=None):
     payload = {}
-    
-    # Prüfen, ob ein Medien-Link im Text oder Embed steckt
     full_text_check = f"{text_content or ''} "
-    if embed_data:
-        full_text_check += f"{embed_data.get('title', '')} {embed_data.get('description', '')}"
-        
+    if embed_data: full_text_check += f"{embed_data.get('title', '')} {embed_data.get('description', '')}"
     has_media_link = any(x in full_text_check for x in ["youtube.com/", "youtu.be/", "x.com/", "twitter.com/"])
-
-    # FALL A: Es ist ein Medien-Link dabei -> Embed auflösen, um Vorschau zu erzwingen
     if has_media_link and embed_data:
-        text_pieces = []
-        
-        if text_content:
-            text_pieces.append(text_content.strip())
-            
-        if embed_data.get("title"):
-            text_pieces.append(f"**{embed_data['title'].strip()}**")
-            
-        if embed_data.get("description"):
-            text_pieces.append(embed_data["description"].strip())
-            
+        text_pieces = [text_content.strip()] if text_content else []
+        if embed_data.get("title"): text_pieces.append(f"**{embed_data['title'].strip()}**")
+        if embed_data.get("description"): text_pieces.append(embed_data["description"].strip())
         payload["content"] = "\n\n".join(text_pieces)
-
-    # FALL B: Normales Update ohne Video -> Klassischer farbiger Kasten (Embed)
     else:
-        if text_content: 
-            payload["content"] = text_content
-        if embed_data: 
-            payload["embeds"] = [embed_data]
-            
+        if text_content: payload["content"] = text_content
+        if embed_data: payload["embeds"] = [embed_data]
     try:
         response = requests.post(url, json=payload)
-        if response.status_code in [200, 204]: 
-            return True, "🚀 Erfolgreich an Discord gesendet!"
+        if response.status_code in [200, 204]: return True, "🚀 Erfolgreich an Discord gesendet!"
         return False, f"Discord-Fehler: {response.status_code} - {response.text}"
     except Exception as e:
         return False, f"Verbindungsfehler: {str(e)}"
@@ -184,73 +182,39 @@ def check_login():
     if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
         st.warning("🔒 Bitte logge dich über die Hauptseite ein!")
         st.stop()
+    utils.apply_modern_css() # Wendet Design automatisch auf jeder Seite an
     return st.session_state["username"]
 
-def get_user_filepath(username, file_type):
-    return file_type
-
-def load_user_settings(username):
-    """Lädt die Design-Einstellungen (Theme und Akzent) eines Nutzers."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT theme, accent FROM users WHERE username = %s", (username,))
-    row = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    if row:
-        return row
-    # Falls der Nutzer neu ist und noch keine Einstellungen hat, Standardwerte zurückgeben:
-    return {"theme": "Dark", "accent": "Pastell Ozean (Blau)"}
-
-# ==============================================================================
-# API-CREDENTIALS & TRACKING-FUNKTIONEN (DYNAMISCH PRO CREATOR)
-# ==============================================================================
 def save_api_credentials(username, platform, channel_id, api_key):
-    """Speichert oder aktualisiert die API-Daten eines spezifischen Nutzers."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO api_credentials (username, platform, channel_id, api_key)
         VALUES (%s, %s, %s, %s)
-        ON CONFLICT (username, platform) 
-        DO UPDATE SET channel_id = EXCLUDED.channel_id, api_key = EXCLUDED.api_key
+        ON CONFLICT (username, platform) DO UPDATE SET channel_id = EXCLUDED.channel_id, api_key = EXCLUDED.api_key
     """, (username, platform, channel_id, api_key))
-    cursor.close()
-    conn.close()
+    cursor.close(); conn.close()
 
 def load_api_credentials(username, platform):
-    """Lädt die API-Daten eines spezifischen Nutzers für eine Plattform."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT channel_id, api_key FROM api_credentials WHERE username = %s AND platform = %s", (username, platform))
     row = cursor.fetchone()
-    cursor.close()
-    conn.close()
+    cursor.close(); conn.close()
     return row
 
 def fetch_youtube_stats(username):
-    """Holt die Live-Statistiken für den verknüpften YouTube-Kanal des angemeldeten Nutzers."""
     creds = load_api_credentials(username, "YouTube")
     if not creds or not creds["api_key"] or not creds["channel_id"]:
-        return None, "⚠️ Keine YouTube-API-Daten für diesen Account hinterlegt."
-        
-    api_key = creds["api_key"]
-    channel_id = creds["channel_id"]
-    
-    url = f"https://www.googleapis.com/youtube/v3/channels?part=statistics&id={channel_id}&key={api_key}"
-    
+        return None, "Keine YouTube-API-Daten hinterlegt."
+    url = f"https://www.googleapis.com/youtube/v3/channels?part=statistics&id={creds['channel_id']}&key={creds['api_key']}"
     try:
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
             if "items" in data and len(data["items"]) > 0:
                 stats = data["items"][0]["statistics"]
-                return {
-                    "subscribers": int(stats.get("subscriberCount", 0)),
-                    "views": int(stats.get("viewCount", 0)),
-                    "videos": int(stats.get("videoCount", 0))
-                }, None
-            return None, "❌ Kanal-ID wurde bei YouTube nicht gefunden. Bitte ID prüfen!"
-        return None, f"YouTube-API-Fehler: {response.status_code} - {response.text}"
-    except Exception as e:
-        return None, f"Verbindungsfehler zur YouTube-API: {str(e)}"
+                return {"subscribers": int(stats.get("subscriberCount", 0)), "views": int(stats.get("viewCount", 0)), "videos": int(stats.get("videoCount", 0))}, None
+            return None, "Kanal-ID nicht gefunden."
+        return None, f"YouTube-API-Fehler."
+    except: return None, "Verbindungsfehler."
