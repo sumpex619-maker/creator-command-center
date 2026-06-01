@@ -1,143 +1,137 @@
 import streamlit as st
-import utils
-import os
-
-st.set_page_config(page_title="Creator Command Center", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
-utils.apply_modern_css()
 
 # ==============================================================================
-# SESSION STATE & AUTH MODUS
+# 1. GRUNDSETUP
 # ==============================================================================
-if "logged_in" not in st.session_state: st.session_state["logged_in"] = False
-if "username" not in st.session_state: st.session_state["username"] = ""
-if "auth_view" not in st.session_state: st.session_state["auth_view"] = "login"
+st.set_page_config(page_title="Command Center", page_icon="🚀", layout="wide", initial_sidebar_state="collapsed")
+
+# Verstecke Streamlit-Standardelemente (Sidebar, Header, Footer)
+st.markdown("""
+    <style>
+        [data-testid="collapsedControl"] { display: none; }
+        [data-testid="stHeader"] { display: none; }
+        footer { display: none; }
+    </style>
+""", unsafe_allow_html=True)
 
 # ==============================================================================
-# BEREICH: AUSGELOGGT (SLIDING AUTHENTIFIZIERUNG)
+# 2. CINEMATIC DARK DESIGN-SYSTEM
 # ==============================================================================
-if not st.session_state["logged_in"]:
-    # Sidebar ausblenden, solange nicht eingeloggt
-    st.markdown('<style>[data-testid="stSidebar"] {display: none;}</style>', unsafe_allow_html=True)
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+
+    .stApp {
+        background-color: #050508 !important;
+        color: #E0E0E0 !important;
+        font-family: 'Space Grotesk', sans-serif !important;
+        background-image: radial-gradient(circle at 50% -20%, #1a0b2e 0%, #050508 50%);
+    }
+
+    h1, h2, h3 { color: #FFFFFF !important; text-transform: uppercase; letter-spacing: 1px; }
+    h1 span { color: #00E5FF; text-shadow: 0 0 10px rgba(0, 229, 255, 0.5); }
+
+    /* Container Boxen */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background-color: #0A0A10 !important;
+        border: 1px solid #1c1c28 !important;
+        border-radius: 4px !important;
+        padding: 20px !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+        transition: all 0.3s ease;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+        border-color: #00E5FF !important;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.15) !important;
+    }
+
+    /* Top-Navigation Buttons (Inaktiv) */
+    .stButton>button {
+        background-color: #0A0A10 !important;
+        color: #6c757d !important;
+        border: 1px solid #1c1c28 !important;
+        border-radius: 4px !important;
+        text-transform: uppercase;
+        font-weight: 600 !important;
+        letter-spacing: 1px;
+        transition: all 0.2s;
+    }
     
-    st.markdown("<div style='text-align: center; margin-top: 5vh; margin-bottom: 40px;'><h1 style='font-size: 56px; background: -webkit-linear-gradient(45deg, #38BDF8, #818CF8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;'>Creator Command Center</h1><p style='font-size: 20px; opacity: 0.8;'>Dein professionelles HQ für Content, Stats & Streams.</p></div>", unsafe_allow_html=True)
-    
-    _, col_auth, _ = st.columns([1, 1.5, 1])
-    
-    with col_auth:
-        c1, c2, c3 = st.columns(3)
-        if c1.button("🔒 Einloggen", use_container_width=True, type="primary" if st.session_state["auth_view"]=="login" else "secondary"): 
-            st.session_state["auth_view"] = "login"; st.rerun()
-        if c2.button("📝 Registrieren", use_container_width=True, type="primary" if st.session_state["auth_view"]=="register" else "secondary"): 
-            st.session_state["auth_view"] = "register"; st.rerun()
-        if c3.button("🔑 Passwort Reset", use_container_width=True, type="primary" if st.session_state["auth_view"]=="reset" else "secondary"): 
-            st.session_state["auth_view"] = "reset"; st.rerun()
-            
-        st.markdown("<div class='bento-card'>", unsafe_allow_html=True)
-        
-        if st.session_state["auth_view"] == "login":
-            st.subheader("Willkommen zurück")
-            with st.form("login_form"):
-                u = st.text_input("Benutzername")
-                p = st.text_input("Passwort", type="password")
-                if st.form_submit_button("🚀 Dashboard betreten", type="primary", use_container_width=True):
-                    if u and p:
-                        conn = utils.get_db_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (u, utils.hash_password(p)))
-                        if cursor.fetchone():
-                            st.session_state["logged_in"], st.session_state["username"] = True, u
-                            st.rerun()
-                        else: st.error("❌ Benutzername oder Passwort inkorrekt.")
-                        cursor.close(); conn.close()
-                        
-        elif st.session_state["auth_view"] == "register":
-            st.subheader("Neues Konto")
-            with st.form("reg_form"):
-                nu = st.text_input("Dein Wunsch-Name")
-                np = st.text_input("Neues Passwort", type="password")
-                if st.form_submit_button("✨ Kostenlos registrieren", use_container_width=True):
-                    if nu and np:
-                        conn = utils.get_db_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("SELECT username FROM users WHERE username = %s", (nu,))
-                        if cursor.fetchone(): st.error("⚠️ Name bereits vergeben.")
-                        else:
-                            cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (nu, utils.hash_password(np)))
-                            st.success("🎉 Konto erstellt! Wechsle auf 'Einloggen'.")
-                        cursor.close(); conn.close()
-
-        elif st.session_state["auth_view"] == "reset":
-            st.subheader("Passwort vergessen?")
-            with st.form("reset_form"):
-                res_u = st.text_input("Dein aktueller Benutzername")
-                res_p = st.text_input("Dein NEUES Passwort", type="password")
-                if st.form_submit_button("🔄 Passwort überschreiben", use_container_width=True):
-                    if res_u and res_p:
-                        conn = utils.get_db_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("SELECT username FROM users WHERE username = %s", (res_u,))
-                        if cursor.fetchone():
-                            cursor.execute("UPDATE users SET password = %s WHERE username = %s", (utils.hash_password(res_p), res_u))
-                            st.success("✅ Passwort zurückgesetzt! Wechsle zum Login.")
-                        else: st.error("⚠️ Benutzer existiert nicht.")
-                        cursor.close(); conn.close()
-        st.markdown("</div>", unsafe_allow_html=True)
-    st.stop()
+    /* Hover & Aktiv (Primary) Status */
+    .stButton>button:hover {
+        color: #00E5FF !important;
+        border-color: #00E5FF !important;
+        box-shadow: 0 0 15px rgba(0, 229, 255, 0.2) !important;
+    }
+    .stButton>button[kind="primary"] {
+        background-color: rgba(0, 229, 255, 0.1) !important;
+        color: #00E5FF !important;
+        border: 1px solid #00E5FF !important;
+        box-shadow: 0 0 15px rgba(0, 229, 255, 0.4) !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ==============================================================================
-# BEREICH: EINGELOGGT (HOMEPAGE DASHBOARD)
+# 3. STATE MANAGEMENT (Welche Seite ist aktiv?)
 # ==============================================================================
-with st.sidebar:
-    st.markdown(f"### 👤 {st.session_state['username']}")
-    new_theme = st.selectbox("🎨 App Design", ["Midnight (Dark)", "Clean (Light)"], index=0 if st.session_state.get("theme") == "Midnight (Dark)" else 1)
-    if new_theme != st.session_state.get("theme"):
-        st.session_state["theme"] = new_theme; st.rerun()
-    st.markdown("---")
-    if st.button("🚪 Sicher Ausloggen", use_container_width=True):
-        st.session_state["logged_in"], st.session_state["username"] = False, ""
-        st.rerun()
+if "active_page" not in st.session_state:
+    st.session_state["active_page"] = "🏠 Dashboard"
 
-st.title(f"👋 Willkommen im HQ, {st.session_state['username']}!")
+# ==============================================================================
+# 4. TOP NAVIGATION
+# ==============================================================================
+st.markdown("<h1>Creator <span>Command Center</span></h1>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
+
+# Menüpunkte definieren
+menu_items = ["🏠 Dashboard", "📊 Stats", "🗓️ Sendeplan", "📝 Ideen", "📢 Post Creator", "💼 Setup"]
+
+# Spalten für die Buttons erstellen
+cols = st.columns(len(menu_items))
+
+for i, item in enumerate(menu_items):
+    # Wenn der Button geklickt wird UND er noch nicht die aktive Seite ist
+    is_active = st.session_state["active_page"] == item
+    if cols[i].button(item, use_container_width=True, type="primary" if is_active else "secondary"):
+        if not is_active:
+            st.session_state["active_page"] = item
+            st.rerun()
+
 st.markdown("---")
 
-def get_page_path(keyword):
-    if os.path.exists("pages"):
-        for file in os.listdir("pages"):
-            if keyword.lower() in file.lower() and file.endswith(".py"):
-                return f"pages/{file}"
-    return None
+# ==============================================================================
+# 5. ROUTING (Inhalt basierend auf Auswahl laden)
+# ==============================================================================
 
-c1, c2, c3 = st.columns(3)
+if st.session_state["active_page"] == "🏠 Dashboard":
+    st.subheader("System Status")
+    c1, c2 = st.columns(2)
+    with c1:
+        with st.container(border=True):
+            st.markdown("### Willkommen zurück")
+            st.write("Wähle oben im Menü ein Modul aus, um zu starten.")
+    with c2:
+        with st.container(border=True):
+            st.markdown("### Schnellzugriff")
+            st.write("Hier kommen später deine wichtigsten Live-Daten hin.")
 
-with c1:
-    with st.container(border=True):
-        path = get_page_path("stats")
-        if path: st.page_link(path, label="📊 Stats & Analytics")
-        st.markdown("<p style='font-size: 14px; opacity:0.8; margin-top: 10px;'>Manuelles Tracking mit Kommastellen & Charts.</p>", unsafe_allow_html=True)
-        
-    with st.container(border=True):
-        path = get_page_path("sendeplan")
-        if path: st.page_link(path, label="🗓️ Sendeplan")
-        st.markdown("<p style='font-size: 14px; opacity:0.8; margin-top: 10px;'>Plane deine Streams und Events.</p>", unsafe_allow_html=True)
+elif st.session_state["active_page"] == "📊 Stats":
+    st.subheader("Analytics Modul")
+    st.info("Hier bauen wir als nächstes das dynamische, API-freie Stats-Modul ein.")
 
-with c2:
-    with st.container(border=True):
-        path = get_page_path("ideen")
-        if path: st.page_link(path, label="📝 Ideen & ToDos")
-        st.markdown("<p style='font-size: 14px; opacity:0.8; margin-top: 10px;'>Keywords und Skripte speichern.</p>", unsafe_allow_html=True)
-        
-    with st.container(border=True):
-        path = get_page_path("post")
-        if path: st.page_link(path, label="📢 Post Creator")
-        st.markdown("<p style='font-size: 14px; opacity:0.8; margin-top: 10px;'>Sende Alerts an deinen Discord.</p>", unsafe_allow_html=True)
+elif st.session_state["active_page"] == "🗓️ Sendeplan":
+    st.subheader("Sendeplan Modul")
+    st.info("Platzhalter für den Kalender.")
 
-with c3:
-    with st.container(border=True):
-        path = get_page_path("business")
-        if path: st.page_link(path, label="💼 Business Hub")
-        st.markdown("<p style='font-size: 14px; opacity:0.8; margin-top: 10px;'>Steuern, Links und Setup.</p>", unsafe_allow_html=True)
-        
-    with st.container(border=True):
-        path = get_page_path("academy")
-        if path: st.page_link(path, label="🎓 Creator Academy")
-        st.markdown("<p style='font-size: 14px; opacity:0.8; margin-top: 10px;'>Guides für Bots, Alerts & Co.</p>", unsafe_allow_html=True)
+elif st.session_state["active_page"] == "📝 Ideen":
+    st.subheader("Ideen Modul")
+    st.info("Platzhalter für deine Skripte und Keywords.")
+
+elif st.session_state["active_page"] == "📢 Post Creator":
+    st.subheader("Discord Uplink")
+    st.info("Platzhalter für den Webhook-Sender.")
+
+elif st.session_state["active_page"] == "💼 Setup":
+    st.subheader("System Setup")
+    st.info("Platzhalter für Webhook-Einstellungen und Datenbank-Setup.")
