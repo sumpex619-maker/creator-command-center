@@ -2,8 +2,60 @@ import streamlit as st
 import utils
 import time
 import pandas as pd
+import requests
 
 current_user = utils.check_login()
+
+# ==============================================================================
+# HILFSFUNKTION: TWITCH API LOGIK (Direkt im Script um Abstürze zu verhindern)
+# ==============================================================================
+def get_twitch_data_safe(username):
+    try:
+        tw_creds = utils.load_api_credentials(username, "Twitch")
+        if not tw_creds or not tw_creds.get("channel_id") or not tw_creds.get("api_key"):
+            return None, "Bitte API-Schlüssel eintragen."
+        
+        client_id = tw_creds["channel_id"]
+        client_secret = tw_creds["api_key"]
+        
+        # Lade den Kanalnamen aus der separaten Config
+        tw_config = utils.load_data(f"tw_config_{username}", dict)
+        channel_name = tw_config.get("channel_name", "")
+        
+        if not channel_name:
+            return None, "Kanalname fehlt in den Einstellungen."
+            
+        # 1. Twitch Token generieren
+        auth_url = 'https://id.twitch.tv/oauth2/token'
+        auth_response = requests.post(auth_url, params={
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'grant_type': 'client_credentials'
+        }).json()
+        
+        if 'access_token' not in auth_response:
+            return None, "Login fehlgeschlagen. IDs prüfen."
+            
+        headers = {
+            'Client-ID': client_id, 
+            'Authorization': f"Bearer {auth_response['access_token']}"
+        }
+        
+        # 2. Twitch User-ID abrufen
+        user_res = requests.get(f'https://api.twitch.tv/helix/users?login={channel_name}', headers=headers).json()
+        if not user_res.get('data'):
+            return None, f"Kanal '{channel_name}' nicht gefunden."
+            
+        user_id = user_res['data'][0]['id']
+        
+        # 3. Follower abrufen
+        foll_res = requests.get(f'https://api.twitch.tv/helix/channels/followers?broadcaster_id={user_id}', headers=headers).json()
+        followers = foll_res.get('total', "API-Limit")
+        
+        return {"followers": followers, "subs": "Privat 🔒", "views": "Entfernt 🔒"}, None
+        
+    except Exception as e:
+        return None, "Verbindungsfehler zur API"
 
 # ==============================================================================
 # HOMEPAGE DESIGN ENGINE 2.0 (Glassmorphism & High Contrast)
@@ -88,21 +140,24 @@ with col_live_yt:
         with c_api3:
             st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Videos</p><h3 style="margin:5px 0 0 0; color:#F43F5E; font-size:24px;">{yt_stats["videos"]:,}</h3></div>', unsafe_allow_html=True)
     else:
-        st.info(f"ℹ️ YouTube Live-Daten inaktiv: API-Schlüssel fehlt oder ist ungültig.")
+        st.info(f"ℹ️ YouTube Live-Daten inaktiv: {yt_error if yt_error else 'API-Schlüssel fehlt.'}")
 
 with col_live_tw:
     st.markdown("### 🟪 Twitch Live-Metriken")
-    tw_stats, tw_error = utils.fetch_twitch_stats(current_user)
+    # HIER IST DER FIX: Nutzt jetzt die absturzsichere Funktion von oben
+    tw_stats, tw_error = get_twitch_data_safe(current_user)
     if tw_stats:
         c_tw1, c_tw2, c_tw3 = st.columns(3)
         with c_tw1:
-            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Follower</p><h3 style="margin:5px 0 0 0; color:#A855F7; font-size:24px;">{tw_stats.get("followers", 0):,}</h3></div>', unsafe_allow_html=True)
+            followers = tw_stats.get("followers", 0)
+            f_str = f"{followers:,}" if isinstance(followers, int) else followers
+            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Follower</p><h3 style="margin:5px 0 0 0; color:#A855F7; font-size:24px;">{f_str}</h3></div>', unsafe_allow_html=True)
         with c_tw2:
-            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Abonnenten (Subs)</p><h3 style="margin:5px 0 0 0; color:#6366F1; font-size:24px;">{tw_stats.get("subs", 0):,}</h3></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Abonnenten (Subs)</p><h3 style="margin:5px 0 0 0; color:#6366F1; font-size:20px;">{tw_stats.get("subs", "-")}</h3></div>', unsafe_allow_html=True)
         with c_tw3:
-            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Kanal-Aufrufe</p><h3 style="margin:5px 0 0 0; color:#EC4899; font-size:24px;">{tw_stats.get("views", 0):,}</h3></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Kanal-Aufrufe</p><h3 style="margin:5px 0 0 0; color:#EC4899; font-size:20px;">{tw_stats.get("views", "-")}</h3></div>', unsafe_allow_html=True)
     else:
-        st.info(f"ℹ️ Twitch Live-Daten inaktiv: API-Verbindung wurde noch nicht eingerichtet.")
+        st.info(f"ℹ️ Twitch Live-Daten inaktiv: {tw_error}")
 
 # --- AUSFÜHRLICHE ERKLÄRUNG UND MANAGER ---
 with st.expander("🔑 API-Schlüssel einrichten & ausführliche Erklärung öffnen"):
@@ -113,14 +168,14 @@ with st.expander("🔑 API-Schlüssel einrichten & ausführliche Erklärung öff
     with t_yt:
         st.markdown("""
         ### Wie funktioniert die YouTube API?
-        Die YouTube API ermöglicht es diesem Dashboard, deine öffentlich einsehbaren Kanaldaten (Abonnenten, Klicks, Videos) direkt bei Google abzufragen. Es werden **keine** privaten Kontodaten oder Passwörter benötigt.
+        Die YouTube API ermöglicht es diesem Dashboard, deine öffentlich einsehbaren Kanaldaten (Abonnenten, Klicks, Videos) direkt bei Google abzufragen.
         
         **Schritt-für-Schritt Anleitung:**
         1. Öffne die offizielle [Google Cloud Console (Hier klicken)](https://console.cloud.google.com/).
-        2. Melde dich mit deinem Google-Konto an und erstelle oben ein neues, kostenloses Projekt (z.B. *Creator Dashboard*).
-        3. Tippe oben in die Suchleiste **"YouTube Data API v3"** ein und klicke bei dem Suchergebnis auf den blauen Button **"Aktivieren"**.
-        4. Navigiere im linken Menü zu **Anmeldedaten** -> Klicke auf **"+ Anmeldedaten erstellen"** -> Wähle **"API-Schlüssel"**. Kopiere diesen Schlüssel.
-        5. Deine **Kanal-ID** findest du auf YouTube unter *Kanal anpassen* -> *Basisinfo* ganz unten, oder in deinen erweiterten YouTube-Kontoeinstellungen. Sie beginnt immer mit den Buchstaben `UC`.
+        2. Melde dich mit deinem Google-Konto an und erstelle oben ein neues, kostenloses Projekt.
+        3. Tippe oben in die Suchleiste **"YouTube Data API v3"** ein und klicke auf **"Aktivieren"**.
+        4. Navigiere im linken Menü zu **Anmeldedaten** -> Klicke auf **"+ Anmeldedaten erstellen"** -> Wähle **"API-Schlüssel"**. Kopiere diesen.
+        5. Deine **Kanal-ID** findest du auf YouTube unter *Kanal anpassen* -> *Basisinfo* ganz unten. Sie beginnt immer mit `UC`.
         """)
         
         existing_creds = utils.load_api_credentials(current_user, "YouTube")
@@ -139,28 +194,36 @@ with st.expander("🔑 API-Schlüssel einrichten & ausführliche Erklärung öff
     with t_tw:
         st.markdown("""
         ### Wie funktioniert die Twitch API?
-        Die Twitch API benötigt eine registrierte App-Verbindung, um deine aktuellen Follower- und Abonnement-Stände sicher auszulesen.
+        Die Twitch API benötigt eine registrierte App-Verbindung, um deine aktuellen Follower sicher auszulesen.
         
         **Schritt-für-Schritt Anleitung:**
         1. Öffne die offizielle [Twitch Entwickler-Konsole (Hier klicken)](https://dev.twitch.tv/console).
-        2. Melde dich mit deinem normalen Twitch-Account an. *(Hinweis: Twitch setzt voraus, dass die Zwei-Faktor-Authentifizierung in deinem Profil aktiv ist).*
-        3. Klicke rechts auf den violetten Button **"+ Deine Anwendung registrieren"** (bzw. *Register Your Application*).
-        4. Trage einen Wunschnamen ein (z.B. `MeinHQDashboard_DeinName`). 
-        5. Füge bei **OAuth Redirect URLs** exakt diese Adresse ein: `https://creator-command-center.streamlit.app` und klicke auf **Add**.
-        6. Wähle als Kategorie **"Application Integration"** aus, bestätige das Captcha und klicke auf **Erstellen**.
-        7. Klicke bei deiner neuen App in der Liste auf **Verwalten** (*Manage*). Kopiere die **Client-ID**.
-        8. Klicke direkt darunter auf **"Neues Secret"** (*New Secret*), um das Passwort zu generieren. **Wichtig:** Kopiere das Secret sofort, da es beim Neuladen der Seite unsichtbar wird!
+        2. Klicke rechts auf **"+ Deine Anwendung registrieren"**.
+        3. Trage einen Wunschnamen ein. 
+        4. Füge bei **OAuth Redirect URLs** exakt diese Adresse ein: `https://creator-command-center.streamlit.app` und klicke auf **Add**.
+        5. Wähle als Kategorie **"Application Integration"** aus und klicke auf **Erstellen**.
+        6. Klicke bei deiner neuen App auf **Verwalten**. Kopiere die **Client-ID**.
+        7. Klicke direkt darunter auf **"Neues Secret"**, um das Passwort zu generieren. Kopiere es sofort.
         """)
         
         tw_creds = utils.load_api_credentials(current_user, "Twitch")
+        tw_config = utils.load_data(f"tw_config_{current_user}", dict)
+        
         with st.form("tw_api_form"):
+            # NEU: Der Kanalname wird jetzt abgefragt!
+            tw_name = st.text_input("Dein Twitch Kanalname", value=tw_config.get("channel_name", ""), placeholder="z.B. DeinName")
             tw_id = st.text_input("Twitch Client-ID", value=tw_creds["channel_id"] if tw_creds else "")
             tw_sec = st.text_input("Twitch Client Secret", value=tw_creds["api_key"] if tw_creds else "", type="password")
+            
             if st.form_submit_button("💾 Twitch Daten sichern", use_container_width=True):
-                if tw_id and tw_sec:
+                if tw_id and tw_sec and tw_name:
                     utils.save_api_credentials(current_user, "Twitch", tw_id, tw_sec)
+                    tw_config["channel_name"] = tw_name
+                    utils.save_data(f"tw_config_{current_user}", tw_config)
                     st.success("✅ Twitch-API-Zugangsdaten erfolgreich hinterlegt!")
                     time.sleep(0.5); st.rerun()
+                else:
+                    st.error("Bitte fülle alle 3 Felder aus!")
 
 st.markdown("---")
 
@@ -211,7 +274,7 @@ if stats_data:
         val = df_avg_er.get("Livestream", 0.0)
         st.markdown(f"📺 **Livestreams:** ` {val}% Ø Rate `")
 else:
-    st.info("📊 Sobald du unten Posts einträgst, erscheinen hier die präzisen Einzel-Diagramme und Interaktionsraten.")
+    st.info("📊 Sobald du unten Posts einträgst, erscheinen hier die präzisen Einzel-Diagramme.")
 
 st.markdown("---")
 
@@ -224,17 +287,15 @@ col_eingabe, col_historie = st.columns([2, 3], gap="large")
 with col_eingabe:
     st.subheader("📝 Daten erfassen")
     
-    # Auswahlelemente AUẞERHALB des Formulars für direkte, dynamische Labeländerungen
     plattform = st.selectbox("1. Plattform wählen", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"])
     post_format = st.selectbox("2. Format wählen", ["Normaler Post / Video", "Short / Reel / TikTok", "Livestream"])
     
-    # Beschriftungslogik weicht vollautomatisch ab, wenn es ein Livestream ist
     if post_format == "Livestream":
         label_m1 = "Ø Zuschauer (CCV)"
         label_m2 = "Peak Zuschauer (Höchstwert)"
         label_m3 = "Neue Follower"
         label_m4 = "Neue Subs / Abonnenten"
-        placeholder_text = f"z.B. {plattform} Stream - Grand Prix"
+        placeholder_text = f"z.B. {plattform} Stream - Sim-Racing Ligarennen"
     else:
         label_m1 = "Views / Klicks"
         label_m2 = "Likes / Gefällt mir"
@@ -257,7 +318,6 @@ with col_eingabe:
         if st.form_submit_button("💾 Eintrag permanent speichern", type="primary", use_container_width=True):
             if post_title:
                 post_id = str(int(time.time()))
-                # Speichert die Daten standardisiert ab, damit Berichte und Statistiken fehlerfrei bleiben
                 stats_data[post_id] = {
                     "title": post_title, "format": post_format, "platform": plattform,
                     "views": m1_val, "likes": m2_val, "comments": m3_val, "shares": m4_val,
@@ -277,7 +337,6 @@ with col_historie:
         sorted_posts = sorted(stats_data.items(), key=lambda x: x[0], reverse=True)
         
         for p_id, p_info in sorted_posts:
-            # Dynamisches Emoji je nach Plattform auswählen
             plt_lower = p_info.get("platform", "").lower()
             if "twitch" in plt_lower: format_emoji = "🟪"
             elif "youtube" in plt_lower: format_emoji = "🔴"
