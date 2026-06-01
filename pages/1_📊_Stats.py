@@ -6,7 +6,7 @@ import pandas as pd
 current_user = utils.check_login()
 
 # ==============================================================================
-# HOMEPAGE DESIGN ENGINE 2.0 (Gleiche Farbpalette wie app.py)
+# HOMEPAGE DESIGN ENGINE 2.0 (Glassmorphism & High Contrast)
 # ==============================================================================
 if "theme" not in st.session_state: st.session_state["theme"] = "Midnight (Dark)"
 with st.sidebar:
@@ -66,42 +66,92 @@ cursor.close(); conn.close()
 stats_data = utils.load_data(f"stats_{current_user}", dict)
 
 st.title("📊 Stats & Content Analytics")
-st.markdown("Überwache deine Live-Plattformdaten, analysiere Interaktionsraten und vergleiche deine Beiträge einzeln.")
+st.markdown("Überwache deine Live-Plattformdaten, analysiere Interaktionsraten und vergleiche deine Performance.")
 st.markdown("---")
 
 # ==============================================================================
-# EBENE 1: API-VERWALTUNG (YOUTUBE & TWITCH)
+# EBENE 1: SEPARATE LIVE API-STATISTIKEN (YOUTUBE & TWITCH)
 # ==============================================================================
-st.subheader("📡 Live-Plattformdaten & API-Schnittstellen")
-yt_stats, yt_error = utils.fetch_youtube_stats(current_user)
+st.subheader("📡 Live-Plattformdaten (Echtzeit API-Schnittstellen)")
 
-if yt_stats:
-    c_api1, c_api2, c_api3 = st.columns(3)
-    with c_api1:
-        st.markdown(f'<div class="bento-card" style="text-align: center;"><p style="margin:0; font-size:14px; opacity:0.7;">Abonnenten</p><h2 style="margin:5px 0 0 0; color:{PRIM}; font-size:32px;">{yt_stats["subscribers"]:,}</h2></div>', unsafe_allow_html=True)
-    with c_api2:
-        st.markdown(f'<div class="bento-card" style="text-align: center;"><p style="margin:0; font-size:14px; opacity:0.7;">Gesamte Aufrufe</p><h2 style="margin:5px 0 0 0; color:#818CF8; font-size:32px;">{yt_stats["views"]:,}</h2></div>', unsafe_allow_html=True)
-    with c_api3:
-        st.markdown(f'<div class="bento-card" style="text-align: center;"><p style="margin:0; font-size:14px; opacity:0.7;">Veröffentlichte Videos</p><h2 style="margin:5px 0 0 0; color:#F43F5E; font-size:32px;">{yt_stats["videos"]:,}</h2></div>', unsafe_allow_html=True)
-else:
-    st.info(f"ℹ️ YouTube Live-Daten inaktiv: {yt_error if yt_error else 'Keine Verbindung eingerichtet.'}")
+col_live_yt, col_live_tw = st.columns(2)
 
-with st.expander("🔑 API-Schlüssel einrichten / ändern (YouTube & Twitch)"):
-    t_yt, t_tw = st.tabs(["🔴 YouTube API", "🟪 Twitch API"])
+with col_live_yt:
+    st.markdown("### 🔴 YouTube Live-Metriken")
+    yt_stats, yt_error = utils.fetch_youtube_stats(current_user)
+    if yt_stats:
+        c_api1, c_api2, c_api3 = st.columns(3)
+        with c_api1:
+            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Abonnenten</p><h3 style="margin:5px 0 0 0; color:{PRIM}; font-size:24px;">{yt_stats["subscribers"]:,}</h3></div>', unsafe_allow_html=True)
+        with c_api2:
+            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Gesamt-Aufrufe</p><h3 style="margin:5px 0 0 0; color:#818CF8; font-size:24px;">{yt_stats["views"]:,}</h3></div>', unsafe_allow_html=True)
+        with c_api3:
+            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Videos</p><h3 style="margin:5px 0 0 0; color:#F43F5E; font-size:24px;">{yt_stats["videos"]:,}</h3></div>', unsafe_allow_html=True)
+    else:
+        st.info(f"ℹ️ YouTube Live-Daten inaktiv: API-Schlüssel fehlt oder ist ungültig.")
+
+with col_live_tw:
+    st.markdown("### 🟪 Twitch Live-Metriken")
+    tw_stats, tw_error = utils.fetch_twitch_stats(current_user)
+    if tw_stats:
+        c_tw1, c_tw2, c_tw3 = st.columns(3)
+        with c_tw1:
+            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Follower</p><h3 style="margin:5px 0 0 0; color:#A855F7; font-size:24px;">{tw_stats.get("followers", 0):,}</h3></div>', unsafe_allow_html=True)
+        with c_tw2:
+            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Abonnenten (Subs)</p><h3 style="margin:5px 0 0 0; color:#6366F1; font-size:24px;">{tw_stats.get("subs", 0):,}</h3></div>', unsafe_allow_html=True)
+        with c_tw3:
+            st.markdown(f'<div class="bento-card" style="text-align: center; padding: 15px !important;"><p style="margin:0; font-size:13px; opacity:0.7;">Kanal-Aufrufe</p><h3 style="margin:5px 0 0 0; color:#EC4899; font-size:24px;">{tw_stats.get("views", 0):,}</h3></div>', unsafe_allow_html=True)
+    else:
+        st.info(f"ℹ️ Twitch Live-Daten inaktiv: API-Verbindung wurde noch nicht eingerichtet.")
+
+# --- AUSFÜHRLICHE ERKLÄRUNG UND MANAGER ---
+with st.expander("🔑 API-Schlüssel einrichten & ausführliche Erklärung öffnen"):
+    st.markdown("Hier kannst du deine Schnittstellen verwalten, damit das Dashboard vollautomatisch deine aktuellen Kanalzahlen ausliest.")
+    
+    t_yt, t_tw = st.tabs(["🔴 YouTube API Anleitung & Key", "🟪 Twitch API Anleitung & Key"])
+    
     with t_yt:
+        st.markdown("""
+        ### Wie funktioniert die YouTube API?
+        Die YouTube API ermöglicht es diesem Dashboard, deine öffentlich einsehbaren Kanaldaten (Abonnenten, Klicks, Videos) direkt bei Google abzufragen. Es werden **keine** privaten Kontodaten oder Passwörter benötigt.
+        
+        **Schritt-für-Schritt Anleitung:**
+        1. Öffne die offizielle [Google Cloud Console (Hier klicken)](https://console.cloud.google.com/).
+        2. Melde dich mit deinem Google-Konto an und erstelle oben ein neues, kostenloses Projekt (z.B. *Creator Dashboard*).
+        3. Tippe oben in die Suchleiste **"YouTube Data API v3"** ein und klicke bei dem Suchergebnis auf den blauen Button **"Aktivieren"**.
+        4. Navigiere im linken Menü zu **Anmeldedaten** -> Klicke auf **"+ Anmeldedaten erstellen"** -> Wähle **"API-Schlüssel"**. Kopiere diesen Schlüssel.
+        5. Deine **Kanal-ID** findest du auf YouTube unter *Kanal anpassen* -> *Basisinfo* ganz unten, oder in deinen erweiterten YouTube-Kontoeinstellungen. Sie beginnt immer mit den Buchstaben `UC`.
+        """)
+        
         existing_creds = utils.load_api_credentials(current_user, "YouTube")
         ex_channel = existing_creds["channel_id"] if existing_creds else ""
         ex_key = existing_creds["api_key"] if existing_creds else ""
+        
         with st.form("api_config_form"):
-            new_channel = st.text_input("YouTube Kanal-ID (Channel ID)", value=ex_channel)
+            new_channel = st.text_input("YouTube Kanal-ID (Channel ID)", value=ex_channel, placeholder="z.B. UCxxxxx...")
             new_key = st.text_input("YouTube API-Key", value=ex_key, type="password")
             if st.form_submit_button("💾 YouTube Daten sichern", use_container_width=True):
                 if new_channel and new_key:
                     utils.save_api_credentials(current_user, "YouTube", new_channel, new_key)
-                    st.success("✅ API-Zugangsdaten erfolgreich aktualisiert!")
+                    st.success("✅ YouTube API-Zugangsdaten erfolgreich aktualisiert!")
                     time.sleep(0.5); st.rerun()
+                    
     with t_tw:
-        st.info("Trage hier deine Daten aus der Twitch-Entwicklerkonsole ein.")
+        st.markdown("""
+        ### Wie funktioniert die Twitch API?
+        Die Twitch API benötigt eine registrierte App-Verbindung, um deine aktuellen Follower- und Abonnement-Stände sicher auszulesen.
+        
+        **Schritt-für-Schritt Anleitung:**
+        1. Öffne die offizielle [Twitch Entwickler-Konsole (Hier klicken)](https://dev.twitch.tv/console).
+        2. Melde dich mit deinem normalen Twitch-Account an. *(Hinweis: Twitch setzt voraus, dass die Zwei-Faktor-Authentifizierung in deinem Profil aktiv ist).*
+        3. Klicke rechts auf den violetten Button **"+ Deine Anwendung registrieren"** (bzw. *Register Your Application*).
+        4. Trage einen Wunschnamen ein (z.B. `MeinHQDashboard_DeinName`). 
+        5. Füge bei **OAuth Redirect URLs** exakt diese Adresse ein: `https://creator-command-center.streamlit.app` und klicke auf **Add**.
+        6. Wähle als Kategorie **"Application Integration"** aus, bestätige das Captcha und klicke auf **Erstellen**.
+        7. Klicke bei deiner neuen App in der Liste auf **Verwalten** (*Manage*). Kopiere die **Client-ID**.
+        8. Klicke direkt darunter auf **"Neues Secret"** (*New Secret*), um das Passwort zu generieren. **Wichtig:** Kopiere das Secret sofort, da es beim Neuladen der Seite unsichtbar wird!
+        """)
+        
         tw_creds = utils.load_api_credentials(current_user, "Twitch")
         with st.form("tw_api_form"):
             tw_id = st.text_input("Twitch Client-ID", value=tw_creds["channel_id"] if tw_creds else "")
@@ -166,69 +216,56 @@ else:
 st.markdown("---")
 
 # ==============================================================================
-# EBENE 3: MODULARER POST-MANAGER (DYNAMISCHE EINGABE & VERLAUF)
+# EBENE 3: MODULARER POST-MANAGER (FLEXIBLE EINGABE FÜR ALLE PLATTFORMEN)
 # ==============================================================================
 col_eingabe, col_historie = st.columns([2, 3], gap="large")
 
-# --- LINKS: DYNAMISCHE STRUKTURIERTE EINGABE ---
+# --- LINKS: VOLLKOMMEN FLEXIBLE & INTELLIGENTE EINGABE ---
 with col_eingabe:
     st.subheader("📝 Daten erfassen")
     
-    eingabe_typ = st.selectbox("Was möchtest du eintragen?", ["Twitch (Livestream)", "YouTube / Social Media (VOD/Post)"])
+    # Auswahlelemente AUẞERHALB des Formulars für direkte, dynamische Labeländerungen
+    plattform = st.selectbox("1. Plattform wählen", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"])
+    post_format = st.selectbox("2. Format wählen", ["Normaler Post / Video", "Short / Reel / TikTok", "Livestream"])
     
-    if eingabe_typ == "Twitch (Livestream)":
-        with st.form("twitch_entry_form", clear_on_submit=True):
-            post_title = st.text_input("Stream Titel / Hauptkategorie", placeholder="z.B. Sim-Racing F1 Liga / Spa")
-            st.markdown("**🟪 Stream-Metriken**")
-            c_tw1, c_tw2 = st.columns(2)
-            with c_tw1:
-                ccv = st.number_input("Ø Zuschauer (CCV)", min_value=0, step=1, value=0)
-                peak = st.number_input("Peak Zuschauer (Höchstwert)", min_value=0, step=1, value=0)
-            with c_tw2:
-                new_follow = st.number_input("Neue Follower", min_value=0, step=1, value=0)
-                new_subs = st.number_input("Neue Subs / Abonnenten", min_value=0, step=1, value=0)
-                
-            if st.form_submit_button("💾 Stream-Report speichern", type="primary", use_container_width=True):
-                if post_title:
-                    post_id = str(int(time.time()))
-                    stats_data[post_id] = {
-                        "title": post_title, "format": "Livestream", "platform": "Twitch",
-                        "views": ccv, "likes": new_subs, "comments": new_follow, "shares": peak,
-                        "date": time.strftime("%d.%m.%Y")
-                    }
-                    utils.save_data(f"stats_{current_user}", stats_data)
-                    st.success("🎉 Twitch-Stream erfolgreich archiviert!")
-                    time.sleep(0.3); st.rerun()
-                    
+    # Beschriftungslogik weicht vollautomatisch ab, wenn es ein Livestream ist
+    if post_format == "Livestream":
+        label_m1 = "Ø Zuschauer (CCV)"
+        label_m2 = "Peak Zuschauer (Höchstwert)"
+        label_m3 = "Neue Follower"
+        label_m4 = "Neue Subs / Abonnenten"
+        placeholder_text = f"z.B. {plattform} Stream - Grand Prix"
     else:
-        with st.form("stats_entry_form", clear_on_submit=True):
-            post_title = st.text_input("Titel des Beitrags", placeholder="z.B. Meisterschaftslauf Highlight-Clip")
-            c_f1, c_f2 = st.columns(2)
-            with c_f1:
-                post_format = st.selectbox("Format (Typ)", ["Short / Reel / TikTok", "Normaler Post / Video"])
-            with c_f2:
-                plattform = st.selectbox("Plattform", ["YouTube", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"])
-                
-            st.markdown("**🔢 Performance-Zahlen**")
-            c_m1, c_m2 = st.columns(2)
-            with c_m1:
-                views = st.number_input("Views / Klicks", min_value=0, step=1, value=0)
-                comments = st.number_input("Kommentare", min_value=0, step=1, value=0)
-            with c_m2:
-                likes = st.number_input("Likes / Gefällt mir", min_value=0, step=1, value=0)
-                shares = st.number_input("Teilungen / Shares", min_value=0, step=1, value=0)
-                
-            if st.form_submit_button("💾 Post-Daten保存", type="primary", use_container_width=True):
-                if post_title:
-                    post_id = str(int(time.time()))
-                    stats_data[post_id] = {
-                        "title": post_title, "format": post_format, "platform": plattform,
-                        "views": views, "likes": likes, "comments": comments, "shares": shares,
-                        "date": time.strftime("%d.%m.%Y")
-                    }
-                    utils.save_data(f"stats_{current_user}", stats_data)
-                    st.success("🎉 Beitrag erfolgreich archiviert!")
-                    time.sleep(0.3); st.rerun()
+        label_m1 = "Views / Klicks"
+        label_m2 = "Likes / Gefällt mir"
+        label_m3 = "Kommentare"
+        label_m4 = "Teilungen / Shares"
+        placeholder_text = f"z.B. Neues {plattform} Video / Clip"
+        
+    with st.form("stats_entry_form", clear_on_submit=True):
+        post_title = st.text_input("Titel des Eintrags", placeholder=placeholder_text)
+        
+        st.markdown(f"**🔢 Performance-Metriken für {post_format}**")
+        c_m1, c_m2 = st.columns(2)
+        with c_m1:
+            m1_val = st.number_input(label_m1, min_value=0, step=1, value=0)
+            m3_val = st.number_input(label_m3, min_value=0, step=1, value=0)
+        with c_m2:
+            m2_val = st.number_input(label_m2, min_value=0, step=1, value=0)
+            m4_val = st.number_input(label_m4, min_value=0, step=1, value=0)
+            
+        if st.form_submit_button("💾 Eintrag permanent speichern", type="primary", use_container_width=True):
+            if post_title:
+                post_id = str(int(time.time()))
+                # Speichert die Daten standardisiert ab, damit Berichte und Statistiken fehlerfrei bleiben
+                stats_data[post_id] = {
+                    "title": post_title, "format": post_format, "platform": plattform,
+                    "views": m1_val, "likes": m2_val, "comments": m3_val, "shares": m4_val,
+                    "date": time.strftime("%d.%m.%Y")
+                }
+                utils.save_data(f"stats_{current_user}", stats_data)
+                st.success("🎉 Beitrag erfolgreich archiviert!")
+                time.sleep(0.3); st.rerun()
 
 # --- RECHTS: VERLAUF MIT EDITIER-OPTION ---
 with col_historie:
@@ -240,8 +277,17 @@ with col_historie:
         sorted_posts = sorted(stats_data.items(), key=lambda x: x[0], reverse=True)
         
         for p_id, p_info in sorted_posts:
-            is_twitch = p_info.get("platform") == "Twitch"
-            format_emoji = "🟪" if is_twitch else ("🎬" if "Short" in p_info["format"] else "📹")
+            # Dynamisches Emoji je nach Plattform auswählen
+            plt_lower = p_info.get("platform", "").lower()
+            if "twitch" in plt_lower: format_emoji = "🟪"
+            elif "youtube" in plt_lower: format_emoji = "🔴"
+            elif "tiktok" in plt_lower: format_emoji = "🎵"
+            elif "instagram" in plt_lower: format_emoji = "📸"
+            elif "kick" in plt_lower: format_emoji = "🟢"
+            elif "twitter" in plt_lower or "x (" in plt_lower: format_emoji = "🐦"
+            else: format_emoji = "🎬" if "Short" in p_info["format"] else "📹"
+            
+            is_livestream = p_info.get("format") == "Livestream"
             
             v_single = p_info.get("views", 0)
             inter_single = p_info.get("likes", 0) + p_info.get("comments", 0) + p_info.get("shares", 0)
@@ -256,7 +302,7 @@ with col_historie:
                 st.markdown(f"📅 {p_info['date']} | 🌐 `{p_info['platform']}` | 📁 `{p_info['format']}`")
                 
                 m1, m2, m3 = st.columns(3)
-                if is_twitch:
+                if is_livestream:
                     m1.metric("🎥 Ø Zuschauer (CCV)", f"{p_info['views']:,}")
                     m2.metric("💎 Neue Subs", f"{p_info['likes']:,}")
                     m3.metric("🎯 Aktivitätsrate", f"{er_single:.2f}%")
@@ -272,33 +318,22 @@ with col_historie:
                     st.markdown("**✏️ Daten anpassen**")
                     with st.form(f"form_edit_stat_{p_id}"):
                         edit_title = st.text_input("Titel", value=p_info["title"])
+                        edit_platform = st.selectbox("Plattform", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"], index=["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"].index(p_info["platform"]) if p_info["platform"] in ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"] else 0)
+                        edit_format = st.selectbox("Format", ["Normaler Post / Video", "Short / Reel / TikTok", "Livestream"], index=["Normaler Post / Video", "Short / Reel / TikTok", "Livestream"].index(p_info["format"]) if p_info["format"] in ["Normaler Post / Video", "Short / Reel / TikTok", "Livestream"] else 0)
                         
-                        if is_twitch:
-                            ce1, ce2 = st.columns(2)
-                            with ce1:
-                                edit_views = st.number_input("Ø Zuschauer (CCV)", min_value=0, value=p_info["views"])
-                                edit_comments = st.number_input("Neue Follower", min_value=0, value=p_info.get("comments", 0))
-                            with ce2:
-                                edit_likes = st.number_input("Neue Subs", min_value=0, value=p_info.get("likes", 0))
-                                edit_shares = st.number_input("Peak Zuschauer", min_value=0, value=p_info.get("shares", 0))
-                        else:
-                            edit_format = st.selectbox("Format", ["Short / Reel / TikTok", "Normaler Post / Video"], index=["Short / Reel / TikTok", "Normaler Post / Video"].index(p_info["format"]) if p_info["format"] in ["Short / Reel / TikTok", "Normaler Post / Video"] else 0)
-                            edit_platform = st.selectbox("Plattform", ["YouTube", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"], index=["YouTube", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"].index(p_info["platform"]) if p_info["platform"] in ["YouTube", "TikTok", "Instagram", "Kick", "X (Twitter)", "Allgemein"] else 0)
-                            ce1, ce2 = st.columns(2)
-                            with ce1:
-                                edit_views = st.number_input("Views", min_value=0, value=p_info["views"])
-                                edit_comments = st.number_input("Kommentare", min_value=0, value=p_info.get("comments", 0))
-                            with ce2:
-                                edit_likes = st.number_input("Likes", min_value=0, value=p_info.get("likes", 0))
-                                edit_shares = st.number_input("Shares", min_value=0, value=p_info.get("shares", 0))
+                        ce1, ce2 = st.columns(2)
+                        with ce1:
+                            edit_views = st.number_input("Views / Ø Zuschauer", min_value=0, value=p_info["views"])
+                            edit_comments = st.number_input("Kommentare / Neue Follower", min_value=0, value=p_info.get("comments", 0))
+                        with ce2:
+                            edit_likes = st.number_input("Likes / Neue Subs", min_value=0, value=p_info.get("likes", 0))
+                            edit_shares = st.number_input("Shares / Peak Zuschauer", min_value=0, value=p_info.get("shares", 0))
                             
                         c_sub1, c_sub2 = st.columns(2)
                         with c_sub1:
                             if st.form_submit_button("💾 Übernehmen", use_container_width=True):
                                 stats_data[p_id] = {
-                                    "title": edit_title, 
-                                    "format": "Livestream" if is_twitch else edit_format, 
-                                    "platform": "Twitch" if is_twitch else edit_platform,
+                                    "title": edit_title, "format": edit_format, "platform": edit_platform,
                                     "views": edit_views, "likes": edit_likes, "comments": edit_comments, "shares": edit_shares,
                                     "date": p_info["date"]
                                 }
@@ -322,9 +357,9 @@ with col_historie:
                                 hook_data = hook_options[selected_hook]
                                 role_ping = f"<@&{hook_data['role_id']}>\n\n" if hook_data["role_id"] else ""
                                 
-                                if is_twitch:
+                                if is_livestream:
                                     discord_msg = (
-                                        f"{role_ping}🟪 **TWITCH STREAM PERFORMANCE REPORT** 🟪\n\n"
+                                        f"{role_ping}🟪 **{p_info['platform'].upper()} STREAM REPORT** 🟪\n\n"
                                         f"📌 **Stream:** {p_info['title']}\n"
                                         f"----------------------------------------\n"
                                         f"🎥 **Ø Zuschauer (CCV):** {p_info['views']:,}\n"
@@ -336,7 +371,7 @@ with col_historie:
                                     )
                                 else:
                                     discord_msg = (
-                                        f"{role_ping}📊 **POST PERFORMANCE REPORT** 📊\n\n"
+                                        f"{role_ping}📊 **{p_info['platform'].upper()} PERFORMANCE REPORT** 📊\n\n"
                                         f"📌 **Beitrag:** {p_info['title']}\n"
                                         f"🌐 **Plattform:** {p_info['platform']} | {format_emoji} **Format:** {p_info['format']}\n"
                                         f"----------------------------------------\n"
