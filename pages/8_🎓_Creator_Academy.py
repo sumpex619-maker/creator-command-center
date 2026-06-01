@@ -7,7 +7,6 @@ st.title("🎓 Creator Academy")
 st.markdown("Dein Kompendium. Lerne die Tools kennen, die große Streamer nutzen.")
 st.markdown("---")
 
-# Neuer Tab "OBS & Software Guide" wurde hinzugefügt
 t_bots, t_alerts, t_software, t_guide = st.tabs(["🤖 Chat-Bots", "🔔 Alerts & Overlays", "🎥 OBS & Software Guide", "📖 Streamer Basic Guide"])
 
 with t_bots:
@@ -41,44 +40,107 @@ with t_alerts:
         st.write("Wenn du professionelle, aufwendige Grafiken suchst (z.B. spezielle Racing-Alerts), kannst du hier fertige Pakete kaufen. Sehr hochwertig!")
 
 # ==============================================================================
-# NEUER BEREICH: OBS & SOFTWARE GUIDE
+# BEREICH: STEP-BY-STEP SOFTWARE GUIDE
 # ==============================================================================
 with t_software:
-    st.subheader("Streaming Software: Einrichtung & Guides")
-    st.markdown("Die richtige Software und die passenden Einstellungen sind das Fundament deines Streams.")
+    st.subheader("🛠️ Step-by-Step Einrichtungs-Guide")
+    st.markdown("Wähle deine Software und folge der Anleitung Schritt für Schritt, um deinen Stream professionell aufzusetzen.")
     
-    c_obs, c_slobs = st.columns(2, gap="large")
+    software_wahl = st.radio("Welche Software möchtest du einrichten?", ["🎬 OBS Studio (Empfohlen)", "💧 Streamlabs Desktop"], horizontal=True)
     
-    with c_obs:
-        with st.container(border=True):
-            st.markdown("#### 🎬 OBS Studio")
-            st.write("Der Branchen-Standard. Komplett kostenlos, ressourcenschonend und durch Plugins unendlich erweiterbar.")
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    if software_wahl == "🎬 OBS Studio (Empfohlen)":
+        with st.expander("Schritt 1: Download & Erste Schritte", expanded=True):
+            st.markdown("""
+            1. Gehe auf [obsproject.com](https://obsproject.com) und lade die Software herunter.
+            2. Beim ersten Start öffnet sich der **Autokonfigurations-Assistent**.
+            3. Wähle: **'Für das Streamen optimieren, Aufnehmen ist zweitrangig'**.
+            4. Klicke dich durch, bis OBS die optimale Basis-Leistung deines PCs ermittelt hat.
+            """)
             
-            # HIER DEN GEWÜNSCHTEN YOUTUBE-LINK FÜR OBS EINTRAGEN
-            st.video("https://www.youtube.com/watch?v=1v1_yB6-0sY") 
-            st.caption("Einrichtungsguide für OBS Studio")
+        with st.expander("Schritt 2: Die richtigen Video- & Ausgabe-Einstellungen"):
+            st.markdown("""
+            Gehe unten rechts auf **Einstellungen** -> **Ausgabe**. Ändere den Ausgabemodus oben auf **Erweitert**.
+            * **Encoder:** Wähle deinen Hardware-Encoder (z.B. `NVIDIA NVENC H.264` oder `AMD HW H.264`). Das entlastet deinen Prozessor massiv!
+            * **Qualitätsregulierung:** Wähle `CBR` (Constant Bitrate).
+            * **Bitrate (Twitch):** Maximal `6000 Kbps` (bei 1080p60fps).
+            * **Bitrate (YouTube):** `10000 Kbps` bis `18000 Kbps` (für ein viel schärferes Bild).
+            * **Keyframe-Intervall:** Fest auf `2` Sekunden eintragen.
+            """)
+            
+        with st.expander("Schritt 3: Audio-Setup & Mikrofon-Filter"):
+            st.markdown("""
+            Guter Ton ist das Wichtigste! Gehe auf **Einstellungen** -> **Audio**.
+            1. Setze **Desktop-Audio** auf deine Kopfhörer.
+            2. Setze **Mikrofon/Auxiliar-Audio** auf dein Mikrofon.
+            3. **Geheimtipp für klaren Sound:** Klicke im Audio-Mixer (Hauptfenster) auf die 3 Punkte neben deinem Mikrofon -> **Filter**. 
+               Füge folgende Filter über das `+` hinzu:
+               * **Rauschunterdrückung:** Entfernt PC-Lüfter-Geräusche (Wähle `RNNoise`).
+               * **Kompressor:** Verhindert, dass du übersteuerst, wenn du mal lauter jubelst oder schreist.
+            """)
+            
+        with st.expander("Schritt 4: Szenen & Quellen anlegen"):
+            st.markdown("""
+            Im Hauptfenster unten links findest du **Szenen** (Ordner) und **Quellen** (die Inhalte darin).
+            1. Erstelle eine neue Szene und nenne sie z.B. "In-Game".
+            2. Klicke bei den Quellen auf das `+`.
+            3. Wähle **Spielaufnahme** (für Vollbildspiele) oder **Bildschirmaufnahme** (um den ganzen Desktop zu zeigen).
+            4. Klicke nochmal auf `+` und wähle **Videoaufnahmegerät**, um deine Webcam hinzuzufügen.
+            5. Ziehe die Webcam im Vorschaufenster einfach an die gewünschte Position und skaliere sie.
+            """)
+            
+        with st.expander("Schritt 5: Konto verknüpfen & Go Live!"):
+            st.markdown("""
+            Fast geschafft! Gehe auf **Einstellungen** -> **Stream**.
+            1. Wähle deine Plattform (z.B. Twitch oder YouTube).
+            2. Klicke auf **Konto verbinden** (empfohlen) ODER trage deinen Stream-Schlüssel manuell ein.
+            3. Speichere alles, klicke im Hauptfenster auf **Stream starten** und du bist live!
+            """)
 
-    with c_slobs:
-        with st.container(border=True):
-            st.markdown("#### 💧 Streamlabs Desktop")
-            st.write("Basiert auf OBS, hat aber Alerts, Chat und Themes direkt integriert. Sehr anfängerfreundlich, braucht aber mehr PC-Leistung.")
+    else:
+        with st.expander("Schritt 1: Download & Erste Schritte", expanded=True):
+            st.markdown("""
+            1. Lade Streamlabs Desktop von der offiziellen Seite herunter.
+            2. Nach der Installation wirst du direkt aufgefordert, dich mit Twitch, YouTube oder Kick einzuloggen. Das spart dir später das Suchen nach dem Stream-Schlüssel!
+            3. Der Assistent fragt dich, ob du Einstellungen aus OBS importieren möchtest oder frisch starten willst. Wähle "Frisch starten".
+            """)
             
-            # HIER DEN GEWÜNSCHTEN YOUTUBE-LINK FÜR STREAMLABS EINTRAGEN
-            st.video("https://www.youtube.com/watch?v=JmCee4yXzZg")
-            st.caption("Einrichtungsguide für Streamlabs Desktop")
+        with st.expander("Schritt 2: Ausgabe-Einstellungen optimieren"):
+            st.markdown("""
+            Gehe unten links auf das **Zahnrad (Einstellungen)** -> **Ausgabe**. Ändere den Modus auf **Erweitert**.
+            * **Encoder:** Wähle zwingend `NVENC` (Nvidia) oder `AMD`, um über die Grafikkarte zu streamen und Lags zu vermeiden.
+            * **Rate Control:** Wähle `CBR`.
+            * **Bitrate:** Trage `6000` für Twitch ein (höher erlaubt Twitch oft nicht). Für YouTube kannst du problemlos `12000` eintragen.
+            * **Keyframe-Intervall:** `2`.
+            """)
             
-    st.markdown("### ⚙️ Die wichtigsten Basis-Einstellungen (Standard 2026)")
-    with st.container(border=True):
-        st.markdown("""
-        Egal welche Software du nutzt, diese Werte solltest du in den **Ausgabe-Einstellungen** kontrollieren:
-        
-        * **Video-Bitrate (Twitch):** Für 1080p bei 60fps solltest du **6000 kbps (CBR)** einstellen. (Twitch-Limit)
-        * **Video-Bitrate (YouTube):** Hier kannst du wesentlich höher gehen. **10.000 bis 18.000 kbps** sorgen für ein extrem scharfes Bild, sofern deine Internetleitung das mitmacht.
-        * **Encoder:** Wähle **immer** den Hardware-Encoder deiner Grafikkarte aus (NVIDIA NVENC H.264 / AV1 oder AMD HW H.264). Das entlastet deinen Hauptprozessor (CPU) massiv.
-        * **Keyframe-Intervall:** Fest auf **2 Sekunden** einstellen.
-        * **Audio-Abtastrate:** Unter den Audio-Einstellungen fest auf **48 kHz (Stereo)** stellen.
-        """)
+        with st.expander("Schritt 3: Alerts und Chat integrieren (Der Streamlabs-Vorteil)"):
+            st.markdown("""
+            Da du Streamlabs nutzt, musst du keine komplizierten Browser-Quellen suchen.
+            1. Gehe in deine Quellen (Sources) und klicke auf das `+`.
+            2. Unter **Widgets** findest du direkt die **Alertbox** (für Follower, Subs etc.) und die **Chatbox**.
+            3. Füge sie hinzu und positioniere sie in deinem Bild. Die Optik kannst du jederzeit über das Streamlabs Dashboard im Browser anpassen.
+            """)
+            
+        with st.expander("Schritt 4: Mikrofon & Gameplay hinzufügen"):
+            st.markdown("""
+            1. Klicke bei den Quellen auf das `+`.
+            2. Wähle **Bildschirmaufnahme** oder **Spielaufnahme** für dein Game.
+            3. Wähle **Audioeingabe-Aufnahme**, um dein Mikrofon hinzuzufügen.
+            4. Klicke im Audio-Mixer auf das Zahnrad neben deinem Mikrofon -> **Filter bearbeiten** und füge eine `Rauschunterdrückung` hinzu, damit man deine Tastatur nicht hört.
+            """)
+            
+        with st.expander("Schritt 5: Go Live & Stream Info"):
+            st.markdown("""
+            1. Klicke unten rechts auf den großen, grünen **Go Live** Button.
+            2. Es öffnet sich ein Fenster, in dem du direkt deinen Stream-Titel, die Kategorie (welches Spiel du spielst) und deine Tags eintragen kannst.
+            3. Bestätigen und du bist auf Sendung!
+            """)
 
+# ==============================================================================
+# BEREICH: BASIC GUIDE
+# ==============================================================================
 with t_guide:
     st.subheader("1x1 für neue Streamer")
     with st.container(border=True):
