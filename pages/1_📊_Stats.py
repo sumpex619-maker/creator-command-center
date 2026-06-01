@@ -7,7 +7,7 @@ import requests
 current_user = utils.check_login()
 
 # ==============================================================================
-# HILFSFUNKTION: TWITCH API LOGIK (Absturzsicher)
+# HILFSFUNKTION: TWITCH API LOGIK
 # ==============================================================================
 def get_twitch_data_safe(username):
     try:
@@ -53,7 +53,7 @@ def get_twitch_data_safe(username):
         return None, "Verbindungsfehler zur API"
 
 # ==============================================================================
-# HOMEPAGE DESIGN ENGINE 2.0 (Clean & High Contrast)
+# HOMEPAGE DESIGN ENGINE 2.0
 # ==============================================================================
 if "theme" not in st.session_state: st.session_state["theme"] = "Midnight (Dark)"
 with st.sidebar:
@@ -78,7 +78,6 @@ st.markdown(f"""
     .bento-card, div[data-testid="stExpander"], .stAlert, div[data-testid="stForm"] {{ 
         background: {CARD} !important; 
         backdrop-filter: blur(12px) !important; 
-        -webkit-backdrop-filter: blur(12px) !important;
         border-radius: 20px !important; 
         border: 1px solid {BORDER} !important; 
         padding: 24px !important; 
@@ -96,7 +95,7 @@ st.markdown(f"""
         transition: all 0.2s ease-in-out; 
     }}
     .stButton>button:hover {{ border-color: {PRIM} !important; background-color: rgba(56, 189, 248, 0.1) !important; transform: translateY(-2px); }}
-    .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, {PRIM} 0%, #818CF8 100%) !important; border: none !important; color: white !important; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4) !important; }}
+    .stButton>button[kind="primary"] {{ background: linear-gradient(135deg, {PRIM} 0%, #818CF8 100%) !important; border: none !important; color: white !important; }}
     .stTextInput>div>div, .stSelectbox>div>div, .stTextArea>div>div, .stNumberInput>div>div {{ border-radius: 12px !important; background-color: {SIDEBAR} !important; border: 1px solid {BORDER} !important; color: {TEXT} !important; }}
 </style>
 """, unsafe_allow_html=True)
@@ -111,7 +110,7 @@ st.markdown("Dein zentraler Ort, um deine Entwicklungen auf allen Plattformen zu
 st.markdown("---")
 
 # ==============================================================================
-# EBENE 1: LIVE API-STATISTIKEN (YOUTUBE & TWITCH FOLLOWER)
+# EBENE 1: LIVE API-STATISTIKEN
 # ==============================================================================
 st.subheader("📡 Aktuelle Live-Daten")
 
@@ -140,12 +139,12 @@ with col_live_tw:
         st.info("🟪 Twitch API nicht verbunden.")
 
 with st.expander("⚙️ API-Schlüssel verwalten"):
-    t_yt, t_tw = st.tabs(["YouTube Einstellungen", "Twitch Einstellungen"])
+    t_yt, t_tw = st.tabs(["YouTube", "Twitch"])
     with t_yt:
         existing_creds = utils.load_api_credentials(current_user, "YouTube")
         with st.form("yt_api_form"):
-            new_channel = st.text_input("YouTube Kanal-ID", value=existing_creds["channel_id"] if existing_creds else "")
-            new_key = st.text_input("YouTube API-Key", value=existing_creds["api_key"] if existing_creds else "", type="password")
+            new_channel = st.text_input("Kanal-ID", value=existing_creds["channel_id"] if existing_creds else "")
+            new_key = st.text_input("API-Key", value=existing_creds["api_key"] if existing_creds else "", type="password")
             if st.form_submit_button("Speichern"):
                 if new_channel and new_key:
                     utils.save_api_credentials(current_user, "YouTube", new_channel, new_key)
@@ -154,9 +153,9 @@ with st.expander("⚙️ API-Schlüssel verwalten"):
         tw_creds = utils.load_api_credentials(current_user, "Twitch")
         tw_config = utils.load_data(f"tw_config_{current_user}", dict)
         with st.form("tw_api_form"):
-            tw_name = st.text_input("Twitch Kanalname", value=tw_config.get("channel_name", ""))
-            tw_id = st.text_input("Twitch Client-ID", value=tw_creds["channel_id"] if tw_creds else "")
-            tw_sec = st.text_input("Twitch Client Secret", value=tw_creds["api_key"] if tw_creds else "", type="password")
+            tw_name = st.text_input("Kanalname", value=tw_config.get("channel_name", ""))
+            tw_id = st.text_input("Client-ID", value=tw_creds["channel_id"] if tw_creds else "")
+            tw_sec = st.text_input("Client Secret", value=tw_creds["api_key"] if tw_creds else "", type="password")
             if st.form_submit_button("Speichern"):
                 if tw_id and tw_sec and tw_name:
                     utils.save_api_credentials(current_user, "Twitch", tw_id, tw_sec)
@@ -167,16 +166,13 @@ with st.expander("⚙️ API-Schlüssel verwalten"):
 st.markdown("---")
 
 # ==============================================================================
-# EBENE 2: DIE ENTWICKLUNGS-ÜBERSICHT (Visualisierung & Filter)
+# EBENE 2: DIE ENTWICKLUNGS-ÜBERSICHT (Getrennt nach Plattformen)
 # ==============================================================================
 st.subheader("📈 Deine Entwicklung im Überblick")
 
 if stats_data:
     chart_rows = []
-    # Nur saubere Einträge verarbeiten
     valid_posts = {k: v for k, v in stats_data.items() if isinstance(v, dict)}
-    
-    # Historie aufsteigend sortieren für das Diagramm (älteste zuerst)
     sorted_for_chart = sorted(valid_posts.items(), key=lambda x: x[0])
     
     for p_id, p_info in sorted_for_chart:
@@ -184,8 +180,11 @@ if stats_data:
         inter = p_info.get("likes", 0) + p_info.get("comments", 0) + p_info.get("shares", 0)
         er = (inter / v * 100) if v > 0 else 0.0
         
+        # Datum + Titel kombiniert für eine eindeutige und lesbare X-Achse
+        display_name = f"{p_info.get('date', '')} - {p_info.get('title', 'Eintrag')}"
+        
         chart_rows.append({
-            "Eintrag": p_info.get("title", "Ohne Titel"),
+            "Eintrag": display_name,
             "Aufrufe / Ø Zuschauer": v,
             "Likes / Subs": p_info.get("likes", 0),
             "Kommentare / Follower": p_info.get("comments", 0),
@@ -197,30 +196,19 @@ if stats_data:
     if chart_rows:
         df_stats = pd.DataFrame(chart_rows)
         
-        # Filter-Optionen generieren
-        verfuegbare_plattformen = ["Alle"] + sorted(list(set(df_stats["Plattform"].tolist())))
-        
-        c_filter, c_metric = st.columns([2, 3])
-        with c_filter:
-            gewaehlte_plattform = st.selectbox("🔍 Nach Plattform filtern", verfuegbare_plattformen)
-        with c_metric:
-            ausgewaehlte_metrik = st.selectbox(
-                "📊 Welche Metrik anzeigen?",
-                ["Aufrufe / Ø Zuschauer", "Interaktionsrate (%)", "Likes / Subs", "Kommentare / Follower", "Shares / Peak"]
-            )
+        ausgewaehlte_metrik = st.selectbox(
+            "📊 Welche Metrik möchtest du vergleichen?",
+            ["Aufrufe / Ø Zuschauer", "Interaktionsrate (%)", "Likes / Subs", "Kommentare / Follower", "Shares / Peak"]
+        )
             
-        # Daten filtern, falls nicht "Alle" ausgewählt ist
-        if gewaehlte_plattform != "Alle":
-            df_chart_data = df_stats[df_stats["Plattform"] == gewaehlte_plattform]
-        else:
-            df_chart_data = df_stats
-            
-        if not df_chart_data.empty:
-            # Liniendiagramm rendern
-            df_chart = df_chart_data.set_index("Eintrag")[[ausgewaehlte_metrik]]
-            st.line_chart(df_chart, color=PRIM, use_container_width=True)
-        else:
-            st.info(f"Keine Daten für die Plattform '{gewaehlte_plattform}' gefunden.")
+        # WICHTIG: Das 'color'-Attribut sorgt dafür, dass jede Plattform ihre eigene Linie bekommt!
+        st.line_chart(
+            data=df_stats, 
+            x="Eintrag", 
+            y=ausgewaehlte_metrik, 
+            color="Plattform", 
+            use_container_width=True
+        )
     else:
         st.info("Deine gespeicherten Daten sind fehlerhaft. Bitte lege neue an.")
 else:
@@ -337,7 +325,7 @@ with col_historie:
                             if st.form_submit_button("Abbrechen", use_container_width=True):
                                 st.session_state[edit_key] = False; st.rerun()
                                 
-                # Normale Ansicht (Werte-Raster + Interaktionsrate)
+                # Normale Ansicht (Werte-Raster + Interaktionsrate als 5. Wert)
                 else:
                     m1, m2, m3, m4, m5 = st.columns(5)
                     if is_live:
@@ -351,5 +339,5 @@ with col_historie:
                         m3.metric("Comms", f"{p_info.get('comments', 0)}")
                         m4.metric("Shares", f"{p_info.get('shares', 0)}")
                     
-                    # Fünfte Spalte ist immer die Interaktionsrate
-                    m5.metric("Rate", f"{er_single:.1f}%")
+                    # Interaktionsrate fest in der Oberfläche
+                    m5.metric("Interaktion", f"{er_single:.1f}%")
