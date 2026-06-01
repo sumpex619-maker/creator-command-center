@@ -6,7 +6,7 @@ import pandas as pd
 current_user = utils.check_login()
 
 # ==============================================================================
-# HOMEPAGE DESIGN ENGINE 2.0 (Glassmorphism & High-End UI)
+# HOMEPAGE DESIGN ENGINE 2.0 (Gleiche Farbpalette wie app.py)
 # ==============================================================================
 if "theme" not in st.session_state: st.session_state["theme"] = "Midnight (Dark)"
 with st.sidebar:
@@ -101,7 +101,7 @@ with st.expander("🔑 API-Schlüssel einrichten / ändern (YouTube & Twitch)"):
                     st.success("✅ API-Zugangsdaten erfolgreich aktualisiert!")
                     time.sleep(0.5); st.rerun()
     with t_tw:
-        st.info("Bereite hier deine Twitch Developer-Verbindung vor, um zukünftig Daten live auszulesen.")
+        st.info("Trage hier deine Daten aus der Twitch-Entwicklerkonsole ein.")
         tw_creds = utils.load_api_credentials(current_user, "Twitch")
         with st.form("tw_api_form"):
             tw_id = st.text_input("Twitch Client-ID", value=tw_creds["channel_id"] if tw_creds else "")
@@ -218,7 +218,7 @@ with col_eingabe:
                 likes = st.number_input("Likes / Gefällt mir", min_value=0, step=1, value=0)
                 shares = st.number_input("Teilungen / Shares", min_value=0, step=1, value=0)
                 
-            if st.form_submit_button("💾 Post-Daten speichern", type="primary", use_container_width=True):
+            if st.form_submit_button("💾 Post-Daten保存", type="primary", use_container_width=True):
                 if post_title:
                     post_id = str(int(time.time()))
                     stats_data[post_id] = {
@@ -230,7 +230,7 @@ with col_eingabe:
                     st.success("🎉 Beitrag erfolgreich archiviert!")
                     time.sleep(0.3); st.rerun()
 
-# --- RECHTS: VERLAUF MIT EDITIER-OPTION (AUTOMATISCHE ANPASSUNG AN PLATTFORM)
+# --- RECHTS: VERLAUF MIT EDITIER-OPTION ---
 with col_historie:
     st.subheader("📋 Beitrags-Archiv & Reports")
     
@@ -255,7 +255,6 @@ with col_historie:
                 st.markdown(f"### {format_emoji} {p_info['title']}")
                 st.markdown(f"📅 {p_info['date']} | 🌐 `{p_info['platform']}` | 📁 `{p_info['format']}`")
                 
-                # Metriken je nach Typ umbenennen
                 m1, m2, m3 = st.columns(3)
                 if is_twitch:
                     m1.metric("🎥 Ø Zuschauer (CCV)", f"{p_info['views']:,}")
@@ -268,7 +267,6 @@ with col_historie:
                 
                 st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
                 
-                # --- AKTIVER BEARBEITUNGSMODUS ---
                 if st.session_state[edit_state_key]:
                     st.markdown("---")
                     st.markdown("**✏️ Daten anpassen**")
@@ -312,7 +310,6 @@ with col_historie:
                             if st.form_submit_button("❌ Abbrechen", use_container_width=True):
                                 st.session_state[edit_state_key] = False; st.rerun()
                 
-                # --- NORMALANSICHT: DISCORD ALERTS & CONTROL BAR ---
                 else:
                     if all_hooks:
                         hook_options = {h[0]: {"url": h[1], "role_id": h[2]} for h in all_hooks}
@@ -325,7 +322,6 @@ with col_historie:
                                 hook_data = hook_options[selected_hook]
                                 role_ping = f"<@&{hook_data['role_id']}>\n\n" if hook_data["role_id"] else ""
                                 
-                                # Discord-Text dynamisch generieren je nach Kanaltyp
                                 if is_twitch:
                                     discord_msg = (
                                         f"{role_ping}🟪 **TWITCH STREAM PERFORMANCE REPORT** 🟪\n\n"
