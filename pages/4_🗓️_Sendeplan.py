@@ -32,19 +32,24 @@ categories_list = list(plan_data["categories"].keys())
 tab_eintragen, tab_posten, tab_kategorien = st.tabs(["📝 Termine verwalten", "🚀 Vorschau & Posten", "📁 Pläne & Webhooks Setup"])
 
 # ------------------------------------------------------------------------------
-# TAB 1: TERMINE EINTRAGEN & VERWALTEN
+# TAB 1: TERMINE EINTRAGEN & VERWALTEN (STRIKTE TRENNUNG)
 # ------------------------------------------------------------------------------
 with tab_eintragen:
-    col_form, col_list = st.columns([1, 1.2], gap="large")
-    
-    with col_form:
-        st.subheader("Neuen Termin anlegen")
-        if not categories_list:
-            st.warning("Bitte lege zuerst im Reiter 'Pläne & Webhooks Setup' einen Plan an.")
-        else:
+    if not categories_list:
+        st.warning("Bitte lege zuerst im Reiter 'Pläne & Webhooks Setup' einen Plan an.")
+    else:
+        # ZENTRALE STEUERUNG: Hier wählt man den Plan aus, und alles darunter passt sich an!
+        gewaehlter_plan = st.selectbox("📂 Welchen Plan möchtest du bearbeiten und ansehen?", categories_list)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        col_form, col_list = st.columns([1, 1.2], gap="large")
+        
+        with col_form:
+            st.subheader(f"Neuen Termin anlegen")
             with st.container(border=True):
                 with st.form("new_event_form", clear_on_submit=True):
-                    kategorie = st.selectbox("Für welchen Plan?", categories_list)
+                    # Info-Text, damit man immer weiß, wo man gerade speichert
+                    st.info(f"💾 Speichert in: **{gewaehlter_plan}**")
                     titel = st.text_input("Titel des Events", placeholder="z.B. GT3 Ligarennen Spa oder Just Chatting")
                     
                     c_date, c_time = st.columns(2)
@@ -58,7 +63,7 @@ with tab_eintragen:
                         if titel:
                             new_entry = {
                                 "id": str(uuid.uuid4())[:8],
-                                "cat": kategorie,
+                                "cat": gewaehlter_plan, # Speichert fest im oben gewählten Plan
                                 "date": datum.strftime("%Y-%m-%d"),
                                 "time": uhrzeit.strftime("%H:%M"),
                                 "title": titel,
@@ -71,36 +76,30 @@ with tab_eintragen:
                         else:
                             st.error("⚠️ Bitte einen Titel eingeben.")
 
-    with col_list:
-        st.subheader("Geplante Termine")
-        if not categories_list:
-            st.info("Keine Termine vorhanden.")
-        else:
-            filter_cat = st.selectbox("Ansicht filtern:", ["Alle Pläne anzeigen"] + categories_list)
+        with col_list:
+            st.subheader(f"Geplante Termine")
             
-            # Sortiere Einträge nach Datum und Uhrzeit
-            sorted_entries = sorted(plan_data["entries"], key=lambda x: (x['date'], x['time']))
+            # Filtere die Liste STRIKT nach dem oben ausgewählten Plan
+            gefilterte_entries = [e for e in plan_data["entries"] if e["cat"] == gewaehlter_plan]
             
-            has_entries = False
-            for entry in sorted_entries:
-                if filter_cat == "Alle Pläne anzeigen" or entry["cat"] == filter_cat:
-                    has_entries = True
-                    
+            if not gefilterte_entries:
+                st.info(f"Aktuell keine Termine für '{gewaehlter_plan}' eingetragen.")
+            else:
+                # Sortiere Einträge nach Datum und Uhrzeit
+                sorted_entries = sorted(gefilterte_entries, key=lambda x: (x['date'], x['time']))
+                
+                for entry in sorted_entries:
                     # Datum schön formatieren (DD.MM.YYYY)
                     date_obj = datetime.datetime.strptime(entry['date'], "%Y-%m-%d")
                     ger_date = date_obj.strftime("%d.%m.%Y")
                     
                     with st.expander(f"🗓️ {ger_date} | {entry['time']} Uhr - {entry['title']}"):
-                        st.markdown(f"**Kategorie:** `{entry['cat']}`")
-                        st.write(entry['desc'] if entry['desc'] else "*Keine Beschreibung.*")
+                        st.write(entry['desc'] if entry['desc'] else "*Keine Beschreibung hinterlegt.*")
                         
                         if st.button("🗑️ Termin löschen", key=f"del_{entry['id']}", use_container_width=True):
                             plan_data["entries"] = [e for e in plan_data["entries"] if e["id"] != entry["id"]]
                             utils.save_data("sendeplan_v2", plan_data)
                             st.rerun()
-                            
-            if not has_entries:
-                st.info("Keine Termine für diese Auswahl gefunden.")
 
 # ------------------------------------------------------------------------------
 # TAB 2: DISCORD EMBED & POSTEN
@@ -123,7 +122,9 @@ with tab_posten:
             custom_msg = st.text_area("Zusätzliche Nachricht (Optional)", placeholder="Hey Leute, hier ist der Plan für diese Woche!")
             
             # --- DATEN FÜR EMBED ZUSAMMENSTELLEN ---
-            entries_to_post = [e for e in sorted_entries if e["cat"] == post_cat]
+            entries_to_post = [e for e in sorted_entries if e["cat"] == post_cat] if 'sorted_entries' in locals() else [e for e in plan_data["entries"] if e["cat"] == post_cat]
+            # Für Tab 2 nochmal separat sortieren, um sicherzugehen
+            entries_to_post = sorted(entries_to_post, key=lambda x: (x['date'], x['time']))
             
             # Embed Struktur für Discord
             embed = {
@@ -248,7 +249,6 @@ with tab_kategorien:
                         st.rerun()
                     if cc2.button("🗑️ Löschen", key=f"btn_del_{cat_name}", use_container_width=True):
                         del plan_data["categories"][cat_name]
-                        # Optional: Löscht direkt auch alle Termine dieses Plans, um Datenmüll zu vermeiden
                         plan_data["entries"] = [e for e in plan_data["entries"] if e["cat"] != cat_name]
                         utils.save_data("sendeplan_v2", plan_data)
                         st.rerun()
