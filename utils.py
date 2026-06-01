@@ -33,7 +33,6 @@ def apply_modern_css():
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
 
-        /* Basis-Hintergrund (Deep Space) */
         .stApp {
             background-color: #050508 !important;
             color: #E0E0E0 !important;
@@ -41,12 +40,10 @@ def apply_modern_css():
             background-image: radial-gradient(circle at 50% 0%, #1a0b2e 0%, #050508 50%);
         }
 
-        /* Verstecke die Standard-Sidebar für die Landingpage-Optik */
         [data-testid="stSidebar"] { background-color: #0A0A10 !important; border-right: 1px solid #1c1c28 !important; }
         
         h1, h2, h3, h4 { color: #FFFFFF !important; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* Container & Karten (Scharf & Technisch) */
         div[data-testid="stVerticalBlockBorderWrapper"], div[data-testid="stForm"], div[data-testid="stExpander"] {
             background-color: #0A0A10 !important;
             border: 1px solid #1c1c28 !important;
@@ -56,13 +53,11 @@ def apply_modern_css():
             transition: all 0.3s ease;
         }
         
-        /* Neon Glow Effekt beim Hovern */
         div[data-testid="stVerticalBlockBorderWrapper"]:hover {
             border-color: #00E5FF !important;
             box-shadow: 0 0 20px rgba(0, 229, 255, 0.15) !important;
         }
 
-        /* Page Links als fette Überschriften */
         a[data-testid="stPageLink-NavLink"] { background-color: transparent !important; padding: 0 !important; border: none !important; }
         a[data-testid="stPageLink-NavLink"] p {
             font-family: 'Space Grotesk', sans-serif !important; 
@@ -74,7 +69,6 @@ def apply_modern_css():
         }
         a[data-testid="stPageLink-NavLink"]:hover p { color: #FFFFFF !important; text-shadow: 0 0 10px #00E5FF; transform: translateX(5px); }
 
-        /* Buttons (Neon Outlines) */
         .stButton>button {
             background-color: transparent !important;
             color: #00E5FF !important;
@@ -87,7 +81,6 @@ def apply_modern_css():
         .stButton>button:hover { background-color: rgba(0, 229, 255, 0.1) !important; box-shadow: 0 0 15px rgba(0, 229, 255, 0.4) !important; }
         .stButton>button[kind="primary"] { background-color: rgba(0, 229, 255, 0.15) !important; box-shadow: 0 0 10px rgba(0, 229, 255, 0.3) !important; }
 
-        /* Eingabefelder */
         .stTextInput>div>div, .stSelectbox>div>div, .stTextArea>div>div, .stNumberInput>div>div { 
             background-color: #050508 !important; border: 1px solid #1c1c28 !important; color: #E0E0E0 !important; border-radius: 4px !important;
         }
@@ -127,3 +120,43 @@ def check_login():
         st.stop()
     apply_modern_css() 
     return st.session_state["username"]
+
+# ==============================================================================
+# DISCORD WEBHOOK FUNKTION (HIER WAR DER FEHLER - FUNKTION IST JETZT WIEDER DA)
+# ==============================================================================
+def send_discord_webhook(url, text_content=None, embed_data=None):
+    payload = {}
+    
+    # Prüfen, ob ein Medien-Link im Text oder Embed steckt
+    full_text_check = f"{text_content or ''} "
+    if embed_data:
+        full_text_check += f"{embed_data.get('title', '')} {embed_data.get('description', '')}"
+        
+    has_media_link = any(x in full_text_check for x in ["youtube.com/", "youtu.be/", "x.com/", "twitter.com/"])
+
+    # FALL A: Es ist ein Medien-Link dabei -> Embed auflösen, um Vorschau zu erzwingen
+    if has_media_link and embed_data:
+        text_pieces = []
+        if text_content:
+            text_pieces.append(text_content.strip())
+        if embed_data.get("title"):
+            text_pieces.append(f"**{embed_data['title'].strip()}**")
+        if embed_data.get("description"):
+            text_pieces.append(embed_data["description"].strip())
+            
+        payload["content"] = "\n\n".join(text_pieces)
+
+    # FALL B: Normales Update -> Klassischer farbiger Kasten (Embed)
+    else:
+        if text_content: 
+            payload["content"] = text_content
+        if embed_data: 
+            payload["embeds"] = [embed_data]
+            
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code in [200, 204]: 
+            return True, "🚀 Erfolgreich an Discord gesendet!"
+        return False, f"Discord-Fehler: {response.status_code} - {response.text}"
+    except Exception as e:
+        return False, f"Verbindungsfehler: {str(e)}"
