@@ -8,26 +8,28 @@ import uuid
 current_user = utils.check_login()
 
 st.title("🗓️ Dynamischer Sendeplan")
-st.markdown("Verwalte verschiedene Pläne (z.B. Streams, Rennkalender), setze feste Daten und poste sie als professionelles Embed in Discord.")
+st.markdown("Verwalte verschiedene Pläne (z.B. Streams, Rennkalender), verknüpfe sie mit eigenen Webhooks und poste sie als professionelles Embed in Discord.")
 st.markdown("---")
 
 # ==============================================================================
-# DATEN LADEN
+# DATEN LADEN & MIGRATION
 # ==============================================================================
-# Neue Struktur: {"categories": ["Main Stream"], "entries": [{"id": "...", "cat": "...", "date": "YYYY-MM-DD", ...}]}
-plan_data = utils.load_data("sendeplan_v2", lambda: {"categories": ["Standard Stream"], "entries": []})
+plan_data = utils.load_data("sendeplan_v2", lambda: {"categories": {"Standard Stream": {"url": "", "role_id": ""}}, "entries": []})
 
-# Webhooks für den Nutzer aus der DB holen
-conn = utils.get_db_connection()
-cursor = conn.cursor()
-cursor.execute("SELECT profile_name, url, role_id FROM webhooks WHERE username = %s", (current_user,))
-user_hooks = cursor.fetchall()
-cursor.close(); conn.close()
+# Migration: Falls alte Kategorien noch als einfache Liste gespeichert sind (aus vorheriger Version)
+if isinstance(plan_data.get("categories"), list):
+    new_cats = {}
+    for cat in plan_data["categories"]:
+        new_cats[cat] = {"url": "", "role_id": ""}
+    plan_data["categories"] = new_cats
+    utils.save_data("sendeplan_v2", plan_data)
+
+categories_list = list(plan_data["categories"].keys())
 
 # ==============================================================================
 # TABS FÜR ÜBERSICHTLICHKEIT
 # ==============================================================================
-tab_eintragen, tab_posten, tab_kategorien = st.tabs(["📝 Termine verwalten", "🚀 Vorschau & Posten", "📁 Kategorien & Setup"])
+tab_eintragen, tab_posten, tab_kategorien = st.tabs(["📝 Termine verwalten", "🚀 Vorschau & Posten", "📁 Pläne & Webhooks Setup"])
 
 # ------------------------------------------------------------------------------
 # TAB 1: TERMINE EINTRAGEN & VERWALTEN
@@ -37,61 +39,68 @@ with tab_eintragen:
     
     with col_form:
         st.subheader("Neuen Termin anlegen")
-        with st.container(border=True):
-            with st.form("new_event_form", clear_on_submit=True):
-                kategorie = st.selectbox("Für welchen Plan?", plan_data["categories"])
-                titel = st.text_input("Titel des Events", placeholder="z.B. GT3 Ligarennen Spa oder Just Chatting")
-                
-                c_date, c_time = st.columns(2)
-                with c_date: datum = st.date_input("Datum", datetime.date.today())
-                with c_time: uhrzeit = st.time_input("Uhrzeit", datetime.time(19, 0))
-                
-                beschreibung = st.text_area("Kurze Beschreibung", placeholder="Was genau passiert dort? (Wird im Discord angezeigt)")
-                
-                if st.form_submit_button("💾 Termin speichern", type="primary", use_container_width=True):
-                    if titel:
-                        new_entry = {
-                            "id": str(uuid.uuid4())[:8],
-                            "cat": kategorie,
-                            "date": datum.strftime("%Y-%m-%d"),
-                            "time": uhrzeit.strftime("%H:%M"),
-                            "title": titel,
-                            "desc": beschreibung
-                        }
-                        plan_data["entries"].append(new_entry)
-                        utils.save_data("sendeplan_v2", plan_data)
-                        st.success("✅ Termin gespeichert!")
-                        time.sleep(0.5); st.rerun()
-                    else:
-                        st.error("⚠️ Bitte einen Titel eingeben.")
+        if not categories_list:
+            st.warning("Bitte lege zuerst im Reiter 'Pläne & Webhooks Setup' einen Plan an.")
+        else:
+            with st.container(border=True):
+                with st.form("new_event_form", clear_on_submit=True):
+                    kategorie = st.selectbox("Für welchen Plan?", categories_list)
+                    titel = st.text_input("Titel des Events", placeholder="z.B. GT3 Ligarennen Spa oder Just Chatting")
+                    
+                    c_date, c_time = st.columns(2)
+                    with c_date: datum = st.date_input("Datum", datetime.date.today())
+                    with c_time: uhrzeit = st.time_input("Uhrzeit", datetime.time(19, 0))
+                    
+                    beschreibung = st.text_area("Kurze Beschreibung", placeholder="Was genau passiert dort? (Wird im Discord angezeigt)")
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    if st.form_submit_button("💾 Termin speichern", type="primary", use_container_width=True):
+                        if titel:
+                            new_entry = {
+                                "id": str(uuid.uuid4())[:8],
+                                "cat": kategorie,
+                                "date": datum.strftime("%Y-%m-%d"),
+                                "time": uhrzeit.strftime("%H:%M"),
+                                "title": titel,
+                                "desc": beschreibung
+                            }
+                            plan_data["entries"].append(new_entry)
+                            utils.save_data("sendeplan_v2", plan_data)
+                            st.success("✅ Termin gespeichert!")
+                            time.sleep(0.5); st.rerun()
+                        else:
+                            st.error("⚠️ Bitte einen Titel eingeben.")
 
     with col_list:
         st.subheader("Geplante Termine")
-        filter_cat = st.selectbox("Ansicht filtern:", ["Alle Pläne anzeigen"] + plan_data["categories"])
-        
-        # Sortiere Einträge nach Datum und Uhrzeit
-        sorted_entries = sorted(plan_data["entries"], key=lambda x: (x['date'], x['time']))
-        
-        has_entries = False
-        for entry in sorted_entries:
-            if filter_cat == "Alle Pläne anzeigen" or entry["cat"] == filter_cat:
-                has_entries = True
-                
-                # Datum schön formatieren (DD.MM.YYYY)
-                date_obj = datetime.datetime.strptime(entry['date'], "%Y-%m-%d")
-                ger_date = date_obj.strftime("%d.%m.%Y")
-                
-                with st.expander(f"🗓️ {ger_date} | {entry['time']} Uhr - {entry['title']}"):
-                    st.markdown(f"**Kategorie:** `{entry['cat']}`")
-                    st.write(entry['desc'] if entry['desc'] else "*Keine Beschreibung.*")
+        if not categories_list:
+            st.info("Keine Termine vorhanden.")
+        else:
+            filter_cat = st.selectbox("Ansicht filtern:", ["Alle Pläne anzeigen"] + categories_list)
+            
+            # Sortiere Einträge nach Datum und Uhrzeit
+            sorted_entries = sorted(plan_data["entries"], key=lambda x: (x['date'], x['time']))
+            
+            has_entries = False
+            for entry in sorted_entries:
+                if filter_cat == "Alle Pläne anzeigen" or entry["cat"] == filter_cat:
+                    has_entries = True
                     
-                    if st.button("🗑️ Termin löschen", key=f"del_{entry['id']}"):
-                        plan_data["entries"] = [e for e in plan_data["entries"] if e["id"] != entry["id"]]
-                        utils.save_data("sendeplan_v2", plan_data)
-                        st.rerun()
+                    # Datum schön formatieren (DD.MM.YYYY)
+                    date_obj = datetime.datetime.strptime(entry['date'], "%Y-%m-%d")
+                    ger_date = date_obj.strftime("%d.%m.%Y")
+                    
+                    with st.expander(f"🗓️ {ger_date} | {entry['time']} Uhr - {entry['title']}"):
+                        st.markdown(f"**Kategorie:** `{entry['cat']}`")
+                        st.write(entry['desc'] if entry['desc'] else "*Keine Beschreibung.*")
                         
-        if not has_entries:
-            st.info("Keine Termine für diese Auswahl gefunden.")
+                        if st.button("🗑️ Termin löschen", key=f"del_{entry['id']}", use_container_width=True):
+                            plan_data["entries"] = [e for e in plan_data["entries"] if e["id"] != entry["id"]]
+                            utils.save_data("sendeplan_v2", plan_data)
+                            st.rerun()
+                            
+            if not has_entries:
+                st.info("Keine Termine für diese Auswahl gefunden.")
 
 # ------------------------------------------------------------------------------
 # TAB 2: DISCORD EMBED & POSTEN
@@ -99,20 +108,17 @@ with tab_eintragen:
 with tab_posten:
     st.subheader("Discord Uplink")
     
-    if not user_hooks:
-        st.warning("⚠️ Du hast noch keine Webhooks in deinen Einstellungen (Business/Setup) hinterlegt!")
+    if not categories_list:
+        st.warning("⚠️ Es existieren noch keine Pläne.")
     elif not plan_data["entries"]:
         st.info("Trage zuerst Termine ein, bevor du einen Plan posten kannst.")
     else:
         c_setup, c_preview = st.columns([1, 1.5], gap="large")
         
         with c_setup:
-            st.markdown("### 1. Plan auswählen")
-            post_cat = st.selectbox("Welchen Plan möchtest du posten?", plan_data["categories"], key="post_cat")
-            
-            st.markdown("### 2. Ziel auswählen")
-            hook_options = {h["profile_name"]: {"url": h["url"], "role_id": h["role_id"]} for h in user_hooks}
-            selected_hook = st.selectbox("In welchen Kanal senden?", list(hook_options.keys()))
+            st.markdown("### 1. Plan zum Senden auswählen")
+            post_cat = st.selectbox("Welchen Plan möchtest du posten?", categories_list, key="post_cat")
+            cat_config = plan_data["categories"][post_cat]
             
             custom_msg = st.text_area("Zusätzliche Nachricht (Optional)", placeholder="Hey Leute, hier ist der Plan für diese Woche!")
             
@@ -122,7 +128,7 @@ with tab_posten:
             # Embed Struktur für Discord
             embed = {
                 "title": f"📅 UPDATE: {post_cat}",
-                "color": 5569535, # Ein schönes Cyan-Blau (#54FBFF)
+                "color": 5569535, # Cinematic Cyan (#54FBFF)
                 "fields": []
             }
             
@@ -135,26 +141,29 @@ with tab_posten:
                 })
                 
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🚀 Plan jetzt an Discord senden", type="primary", use_container_width=True):
-                if not entries_to_post:
-                    st.error("Dieser Plan hat aktuell keine Termine!")
-                else:
-                    target_data = hook_options[selected_hook]
-                    
-                    # Ping bauen, wenn Rolle existiert
-                    role_id = target_data.get("role_id")
-                    ping_text = f"<@&{role_id}>\n" if role_id else ""
-                    
-                    # Nachrichtentext = Ping + Optionale Custom Message
-                    final_content = ping_text + custom_msg
-                    if not final_content.strip(): 
-                        final_content = None # Wenn leer, nur das Embed schicken
+            
+            # Warnung, falls kein Webhook für diese Kategorie existiert
+            if not cat_config.get("url"):
+                st.error(f"⚠️ Dem Plan '{post_cat}' ist keine Webhook-URL zugewiesen. Bitte richte diese im Reiter 'Pläne & Webhooks Setup' ein.")
+            else:
+                if st.button("🚀 Plan jetzt an Discord senden", type="primary", use_container_width=True):
+                    if not entries_to_post:
+                        st.error("Dieser Plan hat aktuell keine Termine!")
+                    else:
+                        # Ping bauen, wenn Rolle existiert
+                        role_id = cat_config.get("role_id")
+                        ping_text = f"<@&{role_id}>\n" if role_id else ""
                         
-                    success, response_msg = utils.send_discord_webhook(target_data["url"], text_content=final_content, embed_data=embed)
-                    if success: 
-                        st.success("✅ Plan wurde erfolgreich als Embed gepostet!")
-                    else: 
-                        st.error(f"Fehler: {response_msg}")
+                        # Nachrichtentext = Ping + Optionale Custom Message
+                        final_content = ping_text + custom_msg
+                        if not final_content.strip(): 
+                            final_content = None # Wenn leer, nur das Embed schicken
+                            
+                        success, response_msg = utils.send_discord_webhook(cat_config["url"], text_content=final_content, embed_data=embed)
+                        if success: 
+                            st.success("✅ Plan wurde erfolgreich als Embed gepostet!")
+                        else: 
+                            st.error(f"Fehler: {response_msg}")
         
         # --- LOKALE VORSCHAU ---
         with c_preview:
@@ -163,27 +172,27 @@ with tab_posten:
                 st.info("Keine Termine in dieser Kategorie zum Anzeigen.")
             else:
                 is_dark = st.session_state.get("theme", "Midnight (Dark)") == "Midnight (Dark)"
-                bg_col = "#36393F" if is_dark else "#F2F3F5"
-                text_col = "#DCDDDE" if is_dark else "#2E3338"
-                embed_bg = "#2F3136" if is_dark else "#FFFFFF"
+                bg_col = "#0A0A10" if is_dark else "#F2F3F5"
+                text_col = "#E0E0E0" if is_dark else "#2E3338"
+                embed_bg = "#111827" if is_dark else "#FFFFFF"
                 
-                role_prev = hook_options[selected_hook].get("role_id")
-                ping_str = f"<span style='color: #7289DA; background-color: rgba(114, 137, 218, 0.1); padding: 0 4px; border-radius: 3px;'>@Rolle ({role_prev})</span><br><br>" if role_prev else ""
+                role_prev = cat_config.get("role_id")
+                ping_str = f"<span style='color: #00E5FF; background-color: rgba(0, 229, 255, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 13px;'>@Rolle ({role_prev})</span><br><br>" if role_prev else ""
                 
                 # HTML Konstrukt für die Embed-Vorschau
                 html_preview = f"""
-                <div style="background-color: {bg_col}; padding: 15px; border-radius: 8px; font-family: 'Inter', sans-serif;">
-                    <p style="color: #DCAE96; margin-bottom: 5px; font-weight: bold;">{current_user} <span style="background-color: #5865F2; color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">BOT</span></p>
+                <div style="background-color: {bg_col}; padding: 15px; border-radius: 4px; border: 1px solid #1c1c28; font-family: 'Space Grotesk', sans-serif;">
+                    <p style="color: #FFFFFF; margin-bottom: 5px; font-weight: bold;">{current_user} <span style="background-color: #00E5FF; color: #000; padding: 2px 5px; border-radius: 3px; font-size: 10px;">BOT</span></p>
                     <p style="color: {text_col}; white-space: pre-wrap; font-size: 14px;">{ping_str}{custom_msg}</p>
                     
-                    <div style="background-color: {embed_bg}; border-left: 4px solid #54FBFF; padding: 12px; border-radius: 4px; margin-top: 10px;">
-                        <h4 style="color: {'#FFFFFF' if is_dark else '#000000'}; margin: 0 0 10px 0; font-family: 'Inter', sans-serif;">{embed['title']}</h4>
+                    <div style="background-color: {embed_bg}; border-left: 4px solid #00E5FF; padding: 15px; border-radius: 4px; margin-top: 10px;">
+                        <h4 style="color: {'#FFFFFF' if is_dark else '#000000'}; margin: 0 0 15px 0;">{embed['title']}</h4>
                 """
                 for f in embed["fields"]:
                     html_preview += f"""
                         <div style="margin-bottom: 12px;">
-                            <div style="color: {'#FFFFFF' if is_dark else '#000000'}; font-weight: 600; font-size: 13px;">{f['name']}</div>
-                            <div style="color: {text_col}; font-size: 13px; white-space: pre-wrap; margin-top: 2px;">{f['value']}</div>
+                            <div style="color: {'#FFFFFF' if is_dark else '#000000'}; font-weight: 700; font-size: 14px;">{f['name']}</div>
+                            <div style="color: {text_col}; font-size: 13px; white-space: pre-wrap; margin-top: 4px;">{f['value']}</div>
                         </div>
                     """
                 html_preview += "</div></div>"
@@ -191,33 +200,69 @@ with tab_posten:
                 st.markdown(html_preview, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------------
-# TAB 3: KATEGORIEN VERWALTEN
+# TAB 3: PLÄNE & WEBHOOKS SETUP
 # ------------------------------------------------------------------------------
 with tab_kategorien:
-    st.subheader("📁 Plan-Kategorien anlegen")
-    st.write("Hier definierst du die verschiedenen Kalender, die du benötigst.")
+    st.subheader("📁 Pläne & Webhooks konfigurieren")
+    st.write("Lege hier fest, welche Pläne es geben soll und an welchen Discord-Webhook sie verknüpft sind.")
     
     with st.container(border=True):
+        st.markdown("#### Neuen Plan erstellen")
         with st.form("new_cat_form", clear_on_submit=True):
-            new_cat = st.text_input("Neue Kategorie (z.B. Podcast, GT3 Liga, Main Channel)")
-            if st.form_submit_button("Hinzufügen"):
-                if new_cat and new_cat not in plan_data["categories"]:
-                    plan_data["categories"].append(new_cat)
-                    utils.save_data("sendeplan_v2", plan_data)
-                    st.success(f"Kategorie '{new_cat}' hinzugefügt!")
-                    st.rerun()
+            new_cat = st.text_input("Name des Plans (z.B. Rennkalender, Just Chatting)")
+            new_url = st.text_input("Discord Webhook URL", placeholder="https://discord.com/api/webhooks/...")
+            new_role = st.text_input("Discord Rollen-ID (Optional)", placeholder="z.B. 1234567890")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.form_submit_button("➕ Plan hinzufügen", type="primary", use_container_width=True):
+                if new_cat and new_url:
+                    if new_cat not in plan_data["categories"]:
+                        plan_data["categories"][new_cat] = {"url": new_url, "role_id": new_role}
+                        utils.save_data("sendeplan_v2", plan_data)
+                        st.success(f"Plan '{new_cat}' erfolgreich angelegt!")
+                        st.rerun()
+                    else:
+                        st.error("Ein Plan mit diesem Namen existiert bereits.")
+                else:
+                    st.error("Bitte einen Namen und eine Webhook-URL eintragen.")
                     
-    st.markdown("#### Aktuelle Kategorien")
-    for cat in plan_data["categories"]:
-        cc1, cc2 = st.columns([4, 1])
-        cc1.markdown(f"**{cat}**")
-        if len(plan_data["categories"]) > 1:
-            if cc2.button("Löschen", key=f"delcat_{cat}"):
-                plan_data["categories"].remove(cat)
-                # Optionale Bereinigung: Alle Termine dieser Kategorie löschen
-                plan_data["entries"] = [e for e in plan_data["entries"] if e["cat"] != cat]
-                utils.save_data("sendeplan_v2", plan_data)
-                st.rerun()
-        else:
-            cc2.caption("Letzte nicht löschbar")
-        st.divider()
+    st.markdown("---")
+    st.markdown("#### Aktuelle Pläne verwalten")
+    
+    if not categories_list:
+        st.info("Noch keine Pläne angelegt.")
+    else:
+        for cat_name, cat_info in plan_data["categories"].items():
+            with st.expander(f"⚙️ {cat_name}"):
+                edit_key = f"edit_cat_{cat_name}"
+                if edit_key not in st.session_state:
+                    st.session_state[edit_key] = False
+                    
+                if not st.session_state[edit_key]:
+                    st.markdown(f"**Webhook-URL:** `{cat_info['url']}`")
+                    st.markdown(f"**Rollen-ID:** `{cat_info['role_id'] if cat_info['role_id'] else 'Kein Ping'}`")
+                    
+                    cc1, cc2 = st.columns(2)
+                    if cc1.button("✏️ Bearbeiten", key=f"btn_edit_{cat_name}", use_container_width=True):
+                        st.session_state[edit_key] = True
+                        st.rerun()
+                    if cc2.button("🗑️ Löschen", key=f"btn_del_{cat_name}", use_container_width=True):
+                        del plan_data["categories"][cat_name]
+                        # Optional: Löscht direkt auch alle Termine dieses Plans, um Datenmüll zu vermeiden
+                        plan_data["entries"] = [e for e in plan_data["entries"] if e["cat"] != cat_name]
+                        utils.save_data("sendeplan_v2", plan_data)
+                        st.rerun()
+                else:
+                    with st.form(f"form_edit_{cat_name}"):
+                        edit_url = st.text_input("Webhook URL", value=cat_info['url'])
+                        edit_role = st.text_input("Rollen-ID", value=cat_info['role_id'])
+                        
+                        c_sub1, c_sub2 = st.columns(2)
+                        if c_sub1.form_submit_button("💾 Speichern", type="primary", use_container_width=True):
+                            plan_data["categories"][cat_name] = {"url": edit_url, "role_id": edit_role}
+                            utils.save_data("sendeplan_v2", plan_data)
+                            st.session_state[edit_key] = False
+                            st.rerun()
+                        if c_sub2.form_submit_button("❌ Abbrechen", use_container_width=True):
+                            st.session_state[edit_key] = False
+                            st.rerun()
