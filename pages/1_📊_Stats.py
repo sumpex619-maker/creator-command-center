@@ -82,7 +82,7 @@ if yt_stats:
     with c_api2:
         st.markdown(f'<div class="bento-card" style="text-align: center;"><p style="margin:0; font-size:14px; opacity:0.7;">Gesamte Aufrufe</p><h2 style="margin:5px 0 0 0; color:#818CF8; font-size:32px;">{yt_stats["views"]:,}</h2></div>', unsafe_allow_html=True)
     with c_api3:
-        st.markdown(f'<div class="bento-card" style="text-align: center;"><p style="margin:0; font-size:14px; opacity:0.7;">Veröffentlichte Videos</p><h2 style="margin:5px 0 0 0; color:#F43F5E; font-size:32px;">{yt_stats["views"]:,}</h2></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="bento-card" style="text-align: center;"><p style="margin:0; font-size:14px; opacity:0.7;">Veröffentlichte Videos</p><h2 style="margin:5px 0 0 0; color:#F43F5E; font-size:32px;">{yt_stats["videos"]:,}</h2></div>', unsafe_allow_html=True)
 else:
     st.info(f"ℹ️ YouTube Live-Daten inaktiv: {yt_error if yt_error else 'Keine Verbindung eingerichtet.'}")
 
