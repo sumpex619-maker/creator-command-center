@@ -24,7 +24,6 @@ if not st.session_state["logged_in"]:
     _, col_auth, _ = st.columns([1, 1.5, 1])
     
     with col_auth:
-        # Custom Toggle-Buttons für den Slider-Effekt
         c1, c2, c3 = st.columns(3)
         if c1.button("🔒 Einloggen", use_container_width=True, type="primary" if st.session_state["auth_view"]=="login" else "secondary"): 
             st.session_state["auth_view"] = "login"; st.rerun()
@@ -35,7 +34,6 @@ if not st.session_state["logged_in"]:
             
         st.markdown("<div class='bento-card'>", unsafe_allow_html=True)
         
-        # --- LOGIN ---
         if st.session_state["auth_view"] == "login":
             st.subheader("Willkommen zurück")
             with st.form("login_form"):
@@ -52,7 +50,6 @@ if not st.session_state["logged_in"]:
                         else: st.error("❌ Benutzername oder Passwort inkorrekt.")
                         cursor.close(); conn.close()
                         
-        # --- REGISTRIEREN ---
         elif st.session_state["auth_view"] == "register":
             st.subheader("Neues Konto")
             with st.form("reg_form"):
@@ -69,7 +66,6 @@ if not st.session_state["logged_in"]:
                             st.success("🎉 Konto erstellt! Wechsle auf 'Einloggen'.")
                         cursor.close(); conn.close()
 
-        # --- RESET ---
         elif st.session_state["auth_view"] == "reset":
             st.subheader("Passwort vergessen?")
             with st.form("reset_form"):
@@ -114,34 +110,34 @@ def get_page_path(keyword):
 c1, c2, c3 = st.columns(3)
 
 with c1:
-    st.markdown('<div class="bento-card"><h4>📊 Stats & Analytics</h4><p style="font-size: 14px; opacity:0.8;">Manuelles Tracking mit Kommastellen & Charts.</p>', unsafe_allow_html=True)
-    path = get_page_path("stats")
-    if path: st.page_link(path, label="Stats öffnen", icon="📈")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('<div class="bento-card"><h4>🗓️ Sendeplan</h4><p style="font-size: 14px; opacity:0.8;">Plane deine Streams und Events.</p>', unsafe_allow_html=True)
-    path = get_page_path("sendeplan")
-    if path: st.page_link(path, label="Planer öffnen", icon="📅")
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        path = get_page_path("stats")
+        if path: st.page_link(path, label="📊 Stats & Analytics")
+        st.markdown("<p style='font-size: 14px; opacity:0.8; margin-top: 10px;'>Manuelles Tracking mit Kommastellen & Charts.</p>", unsafe_allow_html=True)
+        
+    with st.container(border=True):
+        path = get_page_path("sendeplan")
+        if path: st.page_link(path, label="🗓️ Sendeplan")
+        st.markdown("<p style='font-size: 14px; opacity:0.8; margin-top: 10px;'>Plane deine Streams und Events.</p>", unsafe_allow_html=True)
 
 with c2:
-    st.markdown('<div class="bento-card"><h4>📝 Ideen & ToDos</h4><p style="font-size: 14px; opacity:0.8;">Keywords und Skripte speichern.</p>', unsafe_allow_html=True)
-    path = get_page_path("ideen")
-    if path: st.page_link(path, label="Ideen öffnen", icon="💡")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('<div class="bento-card"><h4>📢 Post Creator</h4><p style="font-size: 14px; opacity:0.8;">Sende Alerts an deinen Discord.</p>', unsafe_allow_html=True)
-    path = get_page_path("post")
-    if path: st.page_link(path, label="Posten", icon="🚀")
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        path = get_page_path("ideen")
+        if path: st.page_link(path, label="📝 Ideen & ToDos")
+        st.markdown("<p style='font-size: 14px; opacity:0.8; margin-top: 10px;'>Keywords und Skripte speichern.</p>", unsafe_allow_html=True)
+        
+    with st.container(border=True):
+        path = get_page_path("post")
+        if path: st.page_link(path, label="📢 Post Creator")
+        st.markdown("<p style='font-size: 14px; opacity:0.8; margin-top: 10px;'>Sende Alerts an deinen Discord.</p>", unsafe_allow_html=True)
 
 with c3:
-    st.markdown('<div class="bento-card"><h4>💼 Business Hub</h4><p style="font-size: 14px; opacity:0.8;">Steuern, Links und Setup.</p>', unsafe_allow_html=True)
-    path = get_page_path("business")
-    if path: st.page_link(path, label="Business öffnen", icon="🤝")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('<div class="bento-card"><h4>🎓 Creator Academy</h4><p style="font-size: 14px; opacity:0.8;">Guides für Bots, Alerts & Co.</p>', unsafe_allow_html=True)
-    path = get_page_path("academy")
-    if path: st.page_link(path, label="Lernen", icon="📚")
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        path = get_page_path("business")
+        if path: st.page_link(path, label="💼 Business Hub")
+        st.markdown("<p style='font-size: 14px; opacity:0.8; margin-top: 10px;'>Steuern, Links und Setup.</p>", unsafe_allow_html=True)
+        
+    with st.container(border=True):
+        path = get_page_path("academy")
+        if path: st.page_link(path, label="🎓 Creator Academy")
+        st.markdown("<p style='font-size: 14px; opacity:0.8; margin-top: 10px;'>Guides für Bots, Alerts & Co.</p>", unsafe_allow_html=True)

@@ -84,7 +84,8 @@ def apply_modern_css():
             to {{ opacity: 1; transform: translateY(0); }}
         }}
         
-        .bento-card, div[data-testid="stExpander"], .stAlert, div[data-testid="stForm"] {{ 
+        /* Das ist neu: Native Streamlit-Container (.stVerticalBlockBorderWrapper) sehen nun aus wie Bento-Karten! */
+        .bento-card, div[data-testid="stVerticalBlockBorderWrapper"], div[data-testid="stExpander"], .stAlert, div[data-testid="stForm"] {{ 
             background: {CARD_BG} !important; 
             backdrop-filter: blur(12px) !important; 
             border-radius: 20px !important; 
@@ -93,6 +94,25 @@ def apply_modern_css():
             box-shadow: {GLOW} !important;
             margin-bottom: 15px; 
             animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }}
+        
+        /* Page Links als interaktive Überschriften in den Boxen */
+        a[data-testid="stPageLink-NavLink"] {{
+            background-color: transparent !important;
+            padding: 0 !important;
+            border: none !important;
+        }}
+        a[data-testid="stPageLink-NavLink"] p {{
+            font-family: 'Outfit', sans-serif !important; 
+            font-weight: 800 !important; 
+            font-size: 22px !important;
+            color: #38BDF8 !important;
+            margin: 0 !important;
+            transition: color 0.2s ease-in-out, transform 0.2s ease-in-out;
+        }}
+        a[data-testid="stPageLink-NavLink"]:hover p {{
+            color: #818CF8 !important;
+            transform: translateX(5px);
         }}
         
         /* Buttons */
@@ -182,7 +202,8 @@ def check_login():
     if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
         st.warning("🔒 Bitte logge dich über die Hauptseite ein!")
         st.stop()
-    utils.apply_modern_css() # Wendet Design automatisch auf jeder Seite an
+    # HIER WAR DER FEHLER: Das "utils." davor wurde entfernt.
+    apply_modern_css() 
     return st.session_state["username"]
 
 def save_api_credentials(username, platform, channel_id, api_key):
@@ -202,19 +223,3 @@ def load_api_credentials(username, platform):
     row = cursor.fetchone()
     cursor.close(); conn.close()
     return row
-
-def fetch_youtube_stats(username):
-    creds = load_api_credentials(username, "YouTube")
-    if not creds or not creds["api_key"] or not creds["channel_id"]:
-        return None, "Keine YouTube-API-Daten hinterlegt."
-    url = f"https://www.googleapis.com/youtube/v3/channels?part=statistics&id={creds['channel_id']}&key={creds['api_key']}"
-    try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            if "items" in data and len(data["items"]) > 0:
-                stats = data["items"][0]["statistics"]
-                return {"subscribers": int(stats.get("subscriberCount", 0)), "views": int(stats.get("viewCount", 0)), "videos": int(stats.get("videoCount", 0))}, None
-            return None, "Kanal-ID nicht gefunden."
-        return None, f"YouTube-API-Fehler."
-    except: return None, "Verbindungsfehler."
