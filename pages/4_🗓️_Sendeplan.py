@@ -16,7 +16,6 @@ st.markdown("---")
 # ==============================================================================
 plan_data = utils.load_data("sendeplan_v2", lambda: {"categories": {"Standard Stream": {"url": "", "role_id": ""}}, "entries": []})
 
-# Migration: Falls alte Kategorien noch als einfache Liste gespeichert sind (aus vorheriger Version)
 if isinstance(plan_data.get("categories"), list):
     new_cats = {}
     for cat in plan_data["categories"]:
@@ -38,17 +37,15 @@ with tab_eintragen:
     if not categories_list:
         st.warning("Bitte lege zuerst im Reiter 'Pläne & Webhooks Setup' einen Plan an.")
     else:
-        # ZENTRALE STEUERUNG: Hier wählt man den Plan aus, und alles darunter passt sich an!
         gewaehlter_plan = st.selectbox("📂 Welchen Plan möchtest du bearbeiten und ansehen?", categories_list)
         st.markdown("<br>", unsafe_allow_html=True)
         
         col_form, col_list = st.columns([1, 1.2], gap="large")
         
         with col_form:
-            st.subheader(f"Neuen Termin anlegen")
+            st.subheader("Neuen Termin anlegen")
             with st.container(border=True):
                 with st.form("new_event_form", clear_on_submit=True):
-                    # Info-Text, damit man immer weiß, wo man gerade speichert
                     st.info(f"💾 Speichert in: **{gewaehlter_plan}**")
                     titel = st.text_input("Titel des Events", placeholder="z.B. GT3 Ligarennen Spa oder Just Chatting")
                     
@@ -63,7 +60,7 @@ with tab_eintragen:
                         if titel:
                             new_entry = {
                                 "id": str(uuid.uuid4())[:8],
-                                "cat": gewaehlter_plan, # Speichert fest im oben gewählten Plan
+                                "cat": gewaehlter_plan, 
                                 "date": datum.strftime("%Y-%m-%d"),
                                 "time": uhrzeit.strftime("%H:%M"),
                                 "title": titel,
@@ -77,25 +74,19 @@ with tab_eintragen:
                             st.error("⚠️ Bitte einen Titel eingeben.")
 
         with col_list:
-            st.subheader(f"Geplante Termine")
-            
-            # Filtere die Liste STRIKT nach dem oben ausgewählten Plan
+            st.subheader("Geplante Termine")
             gefilterte_entries = [e for e in plan_data["entries"] if e["cat"] == gewaehlter_plan]
             
             if not gefilterte_entries:
                 st.info(f"Aktuell keine Termine für '{gewaehlter_plan}' eingetragen.")
             else:
-                # Sortiere Einträge nach Datum und Uhrzeit
                 sorted_entries = sorted(gefilterte_entries, key=lambda x: (x['date'], x['time']))
-                
                 for entry in sorted_entries:
-                    # Datum schön formatieren (DD.MM.YYYY)
                     date_obj = datetime.datetime.strptime(entry['date'], "%Y-%m-%d")
                     ger_date = date_obj.strftime("%d.%m.%Y")
                     
                     with st.expander(f"🗓️ {ger_date} | {entry['time']} Uhr - {entry['title']}"):
                         st.write(entry['desc'] if entry['desc'] else "*Keine Beschreibung hinterlegt.*")
-                        
                         if st.button("🗑️ Termin löschen", key=f"del_{entry['id']}", use_container_width=True):
                             plan_data["entries"] = [e for e in plan_data["entries"] if e["id"] != entry["id"]]
                             utils.save_data("sendeplan_v2", plan_data)
@@ -121,15 +112,13 @@ with tab_posten:
             
             custom_msg = st.text_area("Zusätzliche Nachricht (Optional)", placeholder="Hey Leute, hier ist der Plan für diese Woche!")
             
-            # --- DATEN FÜR EMBED ZUSAMMENSTELLEN ---
-            entries_to_post = [e for e in sorted_entries if e["cat"] == post_cat] if 'sorted_entries' in locals() else [e for e in plan_data["entries"] if e["cat"] == post_cat]
-            # Für Tab 2 nochmal separat sortieren, um sicherzugehen
-            entries_to_post = sorted(entries_to_post, key=lambda x: (x['date'], x['time']))
+            # --- STRIKTE TRENNUNG: Holt sich nur die Termine für den exakten Plan ---
+            raw_entries = [e for e in plan_data["entries"] if e["cat"] == post_cat]
+            entries_to_post = sorted(raw_entries, key=lambda x: (x['date'], x['time']))
             
-            # Embed Struktur für Discord
             embed = {
                 "title": f"📅 UPDATE: {post_cat}",
-                "color": 5569535, # Cinematic Cyan (#54FBFF)
+                "color": 5569535, 
                 "fields": []
             }
             
@@ -143,7 +132,6 @@ with tab_posten:
                 
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # Warnung, falls kein Webhook für diese Kategorie existiert
             if not cat_config.get("url"):
                 st.error(f"⚠️ Dem Plan '{post_cat}' ist keine Webhook-URL zugewiesen. Bitte richte diese im Reiter 'Pläne & Webhooks Setup' ein.")
             else:
@@ -151,14 +139,11 @@ with tab_posten:
                     if not entries_to_post:
                         st.error("Dieser Plan hat aktuell keine Termine!")
                     else:
-                        # Ping bauen, wenn Rolle existiert
                         role_id = cat_config.get("role_id")
                         ping_text = f"<@&{role_id}>\n" if role_id else ""
-                        
-                        # Nachrichtentext = Ping + Optionale Custom Message
                         final_content = ping_text + custom_msg
                         if not final_content.strip(): 
-                            final_content = None # Wenn leer, nur das Embed schicken
+                            final_content = None 
                             
                         success, response_msg = utils.send_discord_webhook(cat_config["url"], text_content=final_content, embed_data=embed)
                         if success: 
@@ -180,22 +165,21 @@ with tab_posten:
                 role_prev = cat_config.get("role_id")
                 ping_str = f"<span style='color: #00E5FF; background-color: rgba(0, 229, 255, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 13px;'>@Rolle ({role_prev})</span><br><br>" if role_prev else ""
                 
-                # HTML Konstrukt für die Embed-Vorschau
+                # BUGFIX: Einrückungen entfernt, damit Markdown es als HTML und NICHT als Code-Block interpretiert!
                 html_preview = f"""
-                <div style="background-color: {bg_col}; padding: 15px; border-radius: 4px; border: 1px solid #1c1c28; font-family: 'Space Grotesk', sans-serif;">
-                    <p style="color: #FFFFFF; margin-bottom: 5px; font-weight: bold;">{current_user} <span style="background-color: #00E5FF; color: #000; padding: 2px 5px; border-radius: 3px; font-size: 10px;">BOT</span></p>
-                    <p style="color: {text_col}; white-space: pre-wrap; font-size: 14px;">{ping_str}{custom_msg}</p>
-                    
-                    <div style="background-color: {embed_bg}; border-left: 4px solid #00E5FF; padding: 15px; border-radius: 4px; margin-top: 10px;">
-                        <h4 style="color: {'#FFFFFF' if is_dark else '#000000'}; margin: 0 0 15px 0;">{embed['title']}</h4>
-                """
+<div style="background-color: {bg_col}; padding: 15px; border-radius: 4px; border: 1px solid #1c1c28; font-family: 'Space Grotesk', sans-serif;">
+<p style="color: #FFFFFF; margin-bottom: 5px; font-weight: bold;">{current_user} <span style="background-color: #00E5FF; color: #000; padding: 2px 5px; border-radius: 3px; font-size: 10px;">BOT</span></p>
+<p style="color: {text_col}; white-space: pre-wrap; font-size: 14px;">{ping_str}{custom_msg}</p>
+<div style="background-color: {embed_bg}; border-left: 4px solid #00E5FF; padding: 15px; border-radius: 4px; margin-top: 10px;">
+<h4 style="color: {'#FFFFFF' if is_dark else '#000000'}; margin: 0 0 15px 0;">{embed['title']}</h4>
+"""
                 for f in embed["fields"]:
                     html_preview += f"""
-                        <div style="margin-bottom: 12px;">
-                            <div style="color: {'#FFFFFF' if is_dark else '#000000'}; font-weight: 700; font-size: 14px;">{f['name']}</div>
-                            <div style="color: {text_col}; font-size: 13px; white-space: pre-wrap; margin-top: 4px;">{f['value']}</div>
-                        </div>
-                    """
+<div style="margin-bottom: 12px;">
+<div style="color: {'#FFFFFF' if is_dark else '#000000'}; font-weight: 700; font-size: 14px;">{f['name']}</div>
+<div style="color: {text_col}; font-size: 13px; white-space: pre-wrap; margin-top: 4px;">{f['value']}</div>
+</div>
+"""
                 html_preview += "</div></div>"
                 
                 st.markdown(html_preview, unsafe_allow_html=True)
