@@ -3,7 +3,7 @@ import pandas as pd
 import utils
 import time
 
-# Das neue Herzstück: Prüft Login UND lädt automatisch unser Cinematic Dark Design!
+# Login prüfen & Cinematic Design laden
 current_user = utils.check_login()
 
 st.title("📊 Analytics & Stats")
@@ -11,9 +11,14 @@ st.markdown("Tracke deine Performance manuell – mit voller Kontrolle über Kom
 st.markdown("---")
 
 # ==============================================================================
-# DATEN LADEN
+# DATEN LADEN & BEREINIGEN (BUGFIX)
 # ==============================================================================
 stats_data = utils.load_data("stats", dict)
+
+# BUGFIX: Falls alte Daten aus vorherigen Versionen versehentlich als Liste 
+# (statt als Dictionary) in der Datenbank liegen, wird dies hier abgefangen!
+if not isinstance(stats_data, dict):
+    stats_data = {}
 
 # ==============================================================================
 # EBENE 1: EINTRAGEN (DYNAMISCH & KOMMA-SUPPORT)
@@ -62,7 +67,7 @@ with st.container(border=True):
                 }
                 utils.save_data("stats", stats_data)
                 st.success("✅ Erfolgreich gespeichert!")
-                st.rerun()
+                time.sleep(0.5); st.rerun()
             else:
                 st.error("⚠️ Bitte gib einen Titel an.")
 
@@ -83,11 +88,12 @@ else:
     
     # Daten sortieren und filtern
     for p_id, p_info in sorted(stats_data.items(), key=lambda x: x[0]):
-        if "metrics" not in p_info: continue # Alte unsaubere Daten überspringen
+        # Zweiter Schutzmechanismus: Überspringt fehlerhafte Einzeleinträge
+        if not isinstance(p_info, dict) or "metrics" not in p_info: continue 
         
         if p_info.get("platform") == filter_plat:
-            row = {"Eintrag": f"{p_info['date']} - {p_info['title']}"}
-            row.update(p_info["metrics"])
+            row = {"Eintrag": f"{p_info.get('date', '')} - {p_info.get('title', '')}"}
+            row.update(p_info.get("metrics", {}))
             chart_data.append(row)
             archiv_items.append((p_id, p_info))
             
