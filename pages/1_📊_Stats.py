@@ -11,7 +11,7 @@ st.markdown("Tracke deine Performance manuell – mit voller Kontrolle über Kom
 st.markdown("---")
 
 # ==============================================================================
-# DATEN LADEN & BEREINIGEN (BUGFIX)
+# DATEN LADEN & BEREINIGEN
 # ==============================================================================
 stats_data = utils.load_data("stats", dict)
 
@@ -32,7 +32,7 @@ with st.container(border=True):
         metrics = {}
         
         # ----------------------------------------------------------------------
-        # DYNAMISCHE FELDER: YOUTUBE (SMART FÜR SHORTS & LONGFORM)
+        # DYNAMISCHE FELDER: YOUTUBE (MIT TOOLTIPS FÜR ERKLÄRUNGEN)
         # ----------------------------------------------------------------------
         if plattform == "YouTube":
             yt_format = st.radio("Welches Format hat das Video?", ["🎬 Normales Video (Longform)", "📱 YouTube Short"], horizontal=True)
@@ -41,22 +41,21 @@ with st.container(border=True):
             st.markdown("##### 🎯 Reichweite & Interaktion")
             c1, c2, c3, c4 = st.columns(4)
             
-            # Je nach Format ändern sich die ersten beiden Metriken
             if yt_format == "🎬 Normales Video (Longform)":
-                with c1: m_reach = st.number_input("Impressionen", min_value=0, step=1)
-                with c2: m_rate = st.number_input("Klickrate (CTR %)", min_value=0.0, step=0.1, format="%.1f")
+                with c1: m_reach = st.number_input("Impressionen", min_value=0, step=1, help="Wie oft wurde dein Vorschaubild (Thumbnail) auf YouTube angezeigt? (YT Studio -> Video Analytics -> 'Reichweite')")
+                with c2: m_rate = st.number_input("Klickrate (CTR %)", min_value=0.0, step=0.1, format="%.1f", help="Wie viel Prozent der Leute haben auf dein Thumbnail geklickt? (YT Studio -> Video Analytics -> 'Reichweite')")
             else:
-                with c1: m_reach = st.number_input("Im Feed angezeigt", min_value=0, step=1)
-                with c2: m_rate = st.number_input("Angesehen (%)", min_value=0.0, step=0.1, format="%.1f")
+                with c1: m_reach = st.number_input("Im Feed angezeigt", min_value=0, step=1, help="Wie oft wurde das Short jemandem beim Wischen auf den Bildschirm gespült? (YT Studio -> Reichweite -> Kasten: 'Wie viele haben sich dazu entschieden...')")
+                with c2: m_rate = st.number_input("Angesehen (%)", min_value=0.0, step=0.1, format="%.1f", help="Wie viele Leute haben nicht sofort panisch weitergewischt? (YT Studio -> Reichweite -> Kasten: 'Wie viele haben sich dazu entschieden...')")
                 
             with c3: m_views = st.number_input("Aufrufe", min_value=0, step=1)
-            with c4: m_unique = st.number_input("Einzelne Zuschauer", min_value=0, step=1)
+            with c4: m_unique = st.number_input("Einzelne Zuschauer", min_value=0, step=1, help="Wie viele unterschiedliche Personen haben das Video gesehen? (YT Studio -> Video Analytics -> 'Zuschauer')")
             
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("##### ⏱️ Zuschauerbindung & Wachstum")
             c5, c6, c7, c8 = st.columns(4)
-            with c5: m_wt = st.number_input("Wiedergabezeit (Std)", min_value=0.0, step=0.1, format="%.2f")
-            with c6: m_avd = st.text_input("Ø Wiedergabedauer", placeholder="z.B. 4:20")
+            with c5: m_wt = st.number_input("Wiedergabezeit (Std)", min_value=0.0, step=0.1, format="%.2f", help="Die gesamte Watchtime in Stunden (z.B. 1.4).")
+            with c6: m_avd = st.text_input("Ø Wiedergabedauer", placeholder="z.B. 4:20", help="Trage hier die Zeit genau so ein, wie YouTube sie anzeigt (z.B. 0:17 für Shorts oder 4:20 für normale Videos).")
             with c7: m_likes = st.number_input("Likes", min_value=0, step=1)
             with c8: m_subs = st.number_input("Neue Abonnenten", min_value=0, step=1)
             
@@ -76,8 +75,8 @@ with st.container(border=True):
         # ----------------------------------------------------------------------
         elif plattform in ["Twitch", "Kick"]:
             c1, c2, c3, c4 = st.columns(4)
-            with c1: m1 = st.number_input("Ø Zuschauer (CCV)", min_value=0.0, step=0.1, format="%.2f")
-            with c2: m2 = st.number_input("Peak Zuschauer", min_value=0, step=1)
+            with c1: m1 = st.number_input("Ø Zuschauer (CCV)", min_value=0.0, step=0.1, format="%.2f", help="Deine durchschnittliche Zuschauerzahl (Concurrent Viewers) über den gesamten Stream hinweg.")
+            with c2: m2 = st.number_input("Peak Zuschauer", min_value=0, step=1, help="Der höchste Wert an Zuschauern, die gleichzeitig im Stream waren.")
             with c3: m3 = st.number_input("Neue Follower", min_value=0, step=1)
             with c4: m4 = st.number_input("Neue Subs", min_value=0, step=1)
             metrics = {"Ø CCV": m1, "Peak": m2, "Follower": m3, "Subs": m4}
