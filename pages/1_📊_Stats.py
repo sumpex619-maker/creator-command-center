@@ -24,7 +24,8 @@ if not isinstance(stats_data, dict):
 # EBENE 1: EINTRAGEN (DYNAMISCH & KOMMA-SUPPORT)
 # ==============================================================================
 st.subheader("📝 Werte eintragen")
-plattform = st.selectbox("Für welche Plattform?", ["Twitch", "YouTube", "TikTok", "Instagram", "Kick", "X"])
+# YouTube ist jetzt Standardmäßig direkt als Erstes ausgewählt
+plattform = st.selectbox("Für welche Plattform?", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X"])
 
 with st.container(border=True):
     with st.form("stats_entry_form", clear_on_submit=True):
@@ -34,19 +35,19 @@ with st.container(border=True):
         metrics = {}
         
         # Dynamische Felder je nach Plattform
-        if plattform in ["Twitch", "Kick"]:
+        if plattform == "YouTube":
+            with c1: m1 = st.number_input("Aktive Wiedergaben", min_value=0, step=1)
+            with c2: m2 = st.number_input("Einzelne Zuschauer", min_value=0, step=1)
+            with c3: m3 = st.number_input("Wiedergabezeit (Stunden)", min_value=0.0, step=0.1, format="%.2f")
+            with c4: m4 = st.text_input("Ø Wiedergabedauer", placeholder="z.B. 0:17")
+            metrics = {"Aktive Wiedergaben": m1, "Einzelne Zuschauer": m2, "Wiedergabezeit (Std)": m3, "Ø Wiedergabedauer": m4}
+            
+        elif plattform in ["Twitch", "Kick"]:
             with c1: m1 = st.number_input("Ø Zuschauer (CCV)", min_value=0.0, step=0.1, format="%.2f")
             with c2: m2 = st.number_input("Peak Zuschauer", min_value=0, step=1)
             with c3: m3 = st.number_input("Neue Follower", min_value=0, step=1)
             with c4: m4 = st.number_input("Neue Subs", min_value=0, step=1)
             metrics = {"Ø CCV": m1, "Peak": m2, "Follower": m3, "Subs": m4}
-            
-        elif plattform == "YouTube":
-            with c1: m1 = st.number_input("Aufrufe", min_value=0, step=1)
-            with c2: m2 = st.number_input("Likes", min_value=0, step=1)
-            with c3: m3 = st.number_input("Kommentare", min_value=0, step=1)
-            with c4: m4 = st.number_input("Ø Watchtime (Min)", min_value=0.0, step=0.1, format="%.2f")
-            metrics = {"Aufrufe": m1, "Likes": m2, "Kommentare": m3, "Ø Watchtime": m4}
             
         else: # TikTok, Instagram, X
             with c1: m1 = st.number_input("Views / Impressions", min_value=0, step=1)
@@ -81,14 +82,14 @@ st.subheader("📈 Entwicklung & Archiv")
 if not stats_data:
     st.info("Noch keine Daten vorhanden. Trage oben deinen ersten Stream oder Post ein!")
 else:
-    filter_plat = st.selectbox("Plattform filtern:", ["Twitch", "YouTube", "TikTok", "Instagram", "Kick", "X"])
+    filter_plat = st.selectbox("Plattform filtern:", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X"])
     
     chart_data = []
     archiv_items = []
     
     # Daten sortieren und filtern
     for p_id, p_info in sorted(stats_data.items(), key=lambda x: x[0]):
-        # Zweiter Schutzmechanismus: Überspringt fehlerhafte Einzeleinträge
+        # Schutzmechanismus: Überspringt fehlerhafte Einzeleinträge
         if not isinstance(p_info, dict) or "metrics" not in p_info: continue 
         
         if p_info.get("platform") == filter_plat:
@@ -101,10 +102,17 @@ else:
     if chart_data:
         with st.container(border=True):
             df = pd.DataFrame(chart_data)
-            metriken = [col for col in df.columns if col != "Eintrag"]
-            gewaehlte_metrik = st.selectbox("Metrik für den Graphen:", metriken)
             
-            st.line_chart(df, x="Eintrag", y=gewaehlte_metrik, use_container_width=True)
+            # DIAGRAMM-SCHUTZ: Wir filtern alle Text-Felder (wie "0:17") heraus, 
+            # da ein Graph nur mit echten Zahlen gezeichnet werden kann!
+            numerische_spalten = df.select_dtypes(include=['number']).columns.tolist()
+            metriken = [col for col in numerische_spalten if col != "Eintrag"]
+            
+            if metriken:
+                gewaehlte_metrik = st.selectbox("Metrik für den Graphen:", metriken)
+                st.line_chart(df, x="Eintrag", y=gewaehlte_metrik, use_container_width=True)
+            else:
+                st.info("Für diese Auswahl stehen keine numerischen Daten als Diagramm zur Verfügung.")
     else:
         st.info(f"Noch keine Einträge für {filter_plat} vorhanden.")
         
@@ -115,6 +123,7 @@ else:
             met_cols = st.columns(len(p_info["metrics"]))
             
             for idx, (k, v) in enumerate(p_info["metrics"].items()):
+                # Zeigt die Metrik wunderschön im Bento-Look an
                 met_cols[idx].metric(k, f"{v}")
                 
             st.markdown("<br>", unsafe_allow_html=True)
