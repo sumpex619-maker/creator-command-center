@@ -30,26 +30,56 @@ plattform = st.selectbox("Für welche Plattform?", ["YouTube", "Twitch", "TikTok
 with st.container(border=True):
     with st.form("stats_entry_form", clear_on_submit=True):
         post_title = st.text_input("Titel / Beschreibung", placeholder=f"z.B. Stream vom {time.strftime('%d.%m.')} oder Video-Titel")
+        st.markdown("<br>", unsafe_allow_html=True)
         
-        c1, c2, c3, c4 = st.columns(4)
         metrics = {}
         
-        # Dynamische Felder je nach Plattform
+        # ----------------------------------------------------------------------
+        # DYNAMISCHE FELDER: YOUTUBE (ERWEITERT FÜR 2026)
+        # ----------------------------------------------------------------------
         if plattform == "YouTube":
-            with c1: m1 = st.number_input("Aktive Wiedergaben", min_value=0, step=1)
-            with c2: m2 = st.number_input("Einzelne Zuschauer", min_value=0, step=1)
-            with c3: m3 = st.number_input("Wiedergabezeit (Stunden)", min_value=0.0, step=0.1, format="%.2f")
-            with c4: m4 = st.text_input("Ø Wiedergabedauer", placeholder="z.B. 0:17")
-            metrics = {"Aktive Wiedergaben": m1, "Einzelne Zuschauer": m2, "Wiedergabezeit (Std)": m3, "Ø Wiedergabedauer": m4}
+            st.markdown("##### 🎯 Reichweite & Klicks")
+            c1, c2, c3, c4 = st.columns(4)
+            with c1: m_imp = st.number_input("Impressionen", min_value=0, step=1)
+            with c2: m_ctr = st.number_input("Klickrate (CTR %)", min_value=0.0, step=0.1, format="%.1f")
+            with c3: m_views = st.number_input("Aufrufe", min_value=0, step=1)
+            with c4: m_unique = st.number_input("Einzelne Zuschauer", min_value=0, step=1)
             
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("##### ⏱️ Zuschauerbindung & Wachstum")
+            c5, c6, c7, c8 = st.columns(4)
+            with c5: m_wt = st.number_input("Wiedergabezeit (Std)", min_value=0.0, step=0.1, format="%.2f")
+            with c6: m_avd = st.text_input("Ø Wiedergabedauer", placeholder="z.B. 4:20")
+            with c7: m_likes = st.number_input("Likes", min_value=0, step=1)
+            with c8: m_subs = st.number_input("Neue Abonnenten", min_value=0, step=1)
+            
+            metrics = {
+                "Impressionen": m_imp, 
+                "CTR (%)": m_ctr, 
+                "Aufrufe": m_views, 
+                "Zuschauer": m_unique,
+                "Watchtime (h)": m_wt, 
+                "Ø Dauer": m_avd,
+                "Likes": m_likes,
+                "Subs": m_subs
+            }
+            
+        # ----------------------------------------------------------------------
+        # DYNAMISCHE FELDER: TWITCH / KICK
+        # ----------------------------------------------------------------------
         elif plattform in ["Twitch", "Kick"]:
+            c1, c2, c3, c4 = st.columns(4)
             with c1: m1 = st.number_input("Ø Zuschauer (CCV)", min_value=0.0, step=0.1, format="%.2f")
             with c2: m2 = st.number_input("Peak Zuschauer", min_value=0, step=1)
             with c3: m3 = st.number_input("Neue Follower", min_value=0, step=1)
             with c4: m4 = st.number_input("Neue Subs", min_value=0, step=1)
             metrics = {"Ø CCV": m1, "Peak": m2, "Follower": m3, "Subs": m4}
             
-        else: # TikTok, Instagram, X
+        # ----------------------------------------------------------------------
+        # DYNAMISCHE FELDER: SHORT-FORM (TikTok, Insta, X)
+        # ----------------------------------------------------------------------
+        else: 
+            c1, c2, c3, c4 = st.columns(4)
             with c1: m1 = st.number_input("Views / Impressions", min_value=0, step=1)
             with c2: m2 = st.number_input("Likes", min_value=0, step=1)
             with c3: m3 = st.number_input("Kommentare", min_value=0, step=1)
@@ -103,7 +133,7 @@ else:
         with st.container(border=True):
             df = pd.DataFrame(chart_data)
             
-            # DIAGRAMM-SCHUTZ: Wir filtern alle Text-Felder (wie "0:17") heraus, 
+            # DIAGRAMM-SCHUTZ: Wir filtern alle Text-Felder (wie "4:20") heraus, 
             # da ein Graph nur mit echten Zahlen gezeichnet werden kann!
             numerische_spalten = df.select_dtypes(include=['number']).columns.tolist()
             metriken = [col for col in numerische_spalten if col != "Eintrag"]
@@ -120,11 +150,25 @@ else:
     st.markdown(f"#### 📋 Letzte Einträge ({filter_plat})")
     for p_id, p_info in reversed(archiv_items):
         with st.expander(f"{p_info['date']} | {p_info['title']}"):
-            met_cols = st.columns(len(p_info["metrics"]))
             
-            for idx, (k, v) in enumerate(p_info["metrics"].items()):
-                # Zeigt die Metrik wunderschön im Bento-Look an
-                met_cols[idx].metric(k, f"{v}")
+            # Bei YouTube machen wir aufgrund der vielen Metriken einen sauberen Zeilenumbruch (4 Metriken pro Zeile)
+            if p_info.get("platform") == "YouTube":
+                # Erster Block (Metriken 1-4)
+                met_cols_1 = st.columns(4)
+                # Zweiter Block (Metriken 5-8)
+                met_cols_2 = st.columns(4)
+                
+                for idx, (k, v) in enumerate(p_info["metrics"].items()):
+                    if idx < 4:
+                        met_cols_1[idx].metric(k, f"{v}")
+                    else:
+                        met_cols_2[idx - 4].metric(k, f"{v}")
+            
+            # Für alle anderen Plattformen reichen die Standard-Spalten (da es dort nur 4 Metriken gibt)
+            else:
+                met_cols = st.columns(len(p_info["metrics"]))
+                for idx, (k, v) in enumerate(p_info["metrics"].items()):
+                    met_cols[idx].metric(k, f"{v}")
                 
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("🗑️ Eintrag löschen", key=f"del_{p_id}"):
