@@ -15,8 +15,6 @@ st.markdown("---")
 # ==============================================================================
 stats_data = utils.load_data("stats", dict)
 
-# BUGFIX: Falls alte Daten aus vorherigen Versionen versehentlich als Liste 
-# (statt als Dictionary) in der Datenbank liegen, wird dies hier abgefangen!
 if not isinstance(stats_data, dict):
     stats_data = {}
 
@@ -24,7 +22,6 @@ if not isinstance(stats_data, dict):
 # EBENE 1: EINTRAGEN (DYNAMISCH & KOMMA-SUPPORT)
 # ==============================================================================
 st.subheader("📝 Werte eintragen")
-# YouTube ist jetzt Standardmäßig direkt als Erstes ausgewählt
 plattform = st.selectbox("Für welche Plattform?", ["YouTube", "Twitch", "TikTok", "Instagram", "Kick", "X"])
 
 with st.container(border=True):
@@ -35,13 +32,23 @@ with st.container(border=True):
         metrics = {}
         
         # ----------------------------------------------------------------------
-        # DYNAMISCHE FELDER: YOUTUBE (ERWEITERT FÜR 2026)
+        # DYNAMISCHE FELDER: YOUTUBE (SMART FÜR SHORTS & LONGFORM)
         # ----------------------------------------------------------------------
         if plattform == "YouTube":
-            st.markdown("##### 🎯 Reichweite & Klicks")
+            yt_format = st.radio("Welches Format hat das Video?", ["🎬 Normales Video (Longform)", "📱 YouTube Short"], horizontal=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            st.markdown("##### 🎯 Reichweite & Interaktion")
             c1, c2, c3, c4 = st.columns(4)
-            with c1: m_imp = st.number_input("Impressionen", min_value=0, step=1)
-            with c2: m_ctr = st.number_input("Klickrate (CTR %)", min_value=0.0, step=0.1, format="%.1f")
+            
+            # Je nach Format ändern sich die ersten beiden Metriken
+            if yt_format == "🎬 Normales Video (Longform)":
+                with c1: m_reach = st.number_input("Impressionen", min_value=0, step=1)
+                with c2: m_rate = st.number_input("Klickrate (CTR %)", min_value=0.0, step=0.1, format="%.1f")
+            else:
+                with c1: m_reach = st.number_input("Im Feed angezeigt", min_value=0, step=1)
+                with c2: m_rate = st.number_input("Angesehen (%)", min_value=0.0, step=0.1, format="%.1f")
+                
             with c3: m_views = st.number_input("Aufrufe", min_value=0, step=1)
             with c4: m_unique = st.number_input("Einzelne Zuschauer", min_value=0, step=1)
             
@@ -54,8 +61,8 @@ with st.container(border=True):
             with c8: m_subs = st.number_input("Neue Abonnenten", min_value=0, step=1)
             
             metrics = {
-                "Impressionen": m_imp, 
-                "CTR (%)": m_ctr, 
+                "Impressionen / Feed": m_reach, 
+                "CTR / Angesehen (%)": m_rate, 
                 "Aufrufe": m_views, 
                 "Zuschauer": m_unique,
                 "Watchtime (h)": m_wt, 
@@ -117,9 +124,7 @@ else:
     chart_data = []
     archiv_items = []
     
-    # Daten sortieren und filtern
     for p_id, p_info in sorted(stats_data.items(), key=lambda x: x[0]):
-        # Schutzmechanismus: Überspringt fehlerhafte Einzeleinträge
         if not isinstance(p_info, dict) or "metrics" not in p_info: continue 
         
         if p_info.get("platform") == filter_plat:
@@ -132,9 +137,6 @@ else:
     if chart_data:
         with st.container(border=True):
             df = pd.DataFrame(chart_data)
-            
-            # DIAGRAMM-SCHUTZ: Wir filtern alle Text-Felder (wie "4:20") heraus, 
-            # da ein Graph nur mit echten Zahlen gezeichnet werden kann!
             numerische_spalten = df.select_dtypes(include=['number']).columns.tolist()
             metriken = [col for col in numerische_spalten if col != "Eintrag"]
             
@@ -151,11 +153,8 @@ else:
     for p_id, p_info in reversed(archiv_items):
         with st.expander(f"{p_info['date']} | {p_info['title']}"):
             
-            # Bei YouTube machen wir aufgrund der vielen Metriken einen sauberen Zeilenumbruch (4 Metriken pro Zeile)
             if p_info.get("platform") == "YouTube":
-                # Erster Block (Metriken 1-4)
                 met_cols_1 = st.columns(4)
-                # Zweiter Block (Metriken 5-8)
                 met_cols_2 = st.columns(4)
                 
                 for idx, (k, v) in enumerate(p_info["metrics"].items()):
@@ -163,8 +162,6 @@ else:
                         met_cols_1[idx].metric(k, f"{v}")
                     else:
                         met_cols_2[idx - 4].metric(k, f"{v}")
-            
-            # Für alle anderen Plattformen reichen die Standard-Spalten (da es dort nur 4 Metriken gibt)
             else:
                 met_cols = st.columns(len(p_info["metrics"]))
                 for idx, (k, v) in enumerate(p_info["metrics"].items()):
