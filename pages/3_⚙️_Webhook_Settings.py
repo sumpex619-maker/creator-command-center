@@ -15,36 +15,42 @@ tab_integrations, tab_webhooks = st.tabs(["🔗 Verknüpfte Accounts", "📡 Dis
 # ==============================================================================
 with tab_integrations:
     st.subheader("Plattformen verknüpfen")
-    st.write("Hinterlege hier deine Kanalnamen, damit das Command Center automatisch Daten für dich abrufen kann.")
+    st.write("Hinterlege hier deine Kanalnamen und API-Schlüssel, damit das Command Center individuell für dich arbeiten kann.")
 
-    # Aktuelle Credentials aus der Datenbank laden
+    # Aktuelle Credentials & Keys aus der Datenbank laden
     conn = utils.get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT platform, channel_id FROM api_credentials WHERE username = %s", (username,))
-    creds = {row["platform"]: row["channel_id"] for row in cursor.fetchall()}
+    cursor.execute("SELECT platform, channel_id, api_key FROM api_credentials WHERE username = %s", (username,))
+    
+    # Neues Datenformat: Wir speichern Channel-ID UND API-Key
+    creds = {row["platform"]: {"channel_id": row["channel_id"], "api_key": row["api_key"]} for row in cursor.fetchall()}
 
     with st.container(border=True):
         with st.form("api_creds_form"):
-            twitch_name = st.text_input("🟣 Twitch Kanalname", value=creds.get("Twitch", ""), placeholder="z.B. dein_twitch_name")
-            youtube_id = st.text_input("🔴 YouTube Channel ID (optional)", value=creds.get("YouTube", ""), placeholder="z.B. UCxyz123...")
+            twitch_name = st.text_input("🟣 Twitch Kanalname", value=creds.get("Twitch", {}).get("channel_id", ""), placeholder="z.B. dein_twitch_name")
+            
+            st.markdown("---")
+            youtube_id = st.text_input("🔴 YouTube Channel ID", value=creds.get("YouTube", {}).get("channel_id", ""), placeholder="z.B. UCxyz123...")
+            youtube_key = st.text_input("🔑 YouTube API Key", value=creds.get("YouTube", {}).get("api_key", ""), type="password", placeholder="Dein persönlicher Google Cloud API Key")
 
             st.markdown("<br>", unsafe_allow_html=True)
             if st.form_submit_button("💾 Verbindungen speichern", type="primary", use_container_width=True):
-                # Twitch speichern
+                # Twitch speichern (braucht keinen API Key)
                 if twitch_name:
-                    cursor.execute("INSERT INTO api_credentials (username, platform, channel_id) VALUES (%s, 'Twitch', %s) ON CONFLICT (username, platform) DO UPDATE SET channel_id = EXCLUDED.channel_id", (username, twitch_name))
-                # YouTube speichern
-                if youtube_id:
-                    cursor.execute("INSERT INTO api_credentials (username, platform, channel_id) VALUES (%s, 'YouTube', %s) ON CONFLICT (username, platform) DO UPDATE SET channel_id = EXCLUDED.channel_id", (username, youtube_id))
+                    cursor.execute("INSERT INTO api_credentials (username, platform, channel_id, api_key) VALUES (%s, 'Twitch', %s, '') ON CONFLICT (username, platform) DO UPDATE SET channel_id = EXCLUDED.channel_id", (username, twitch_name))
                 
-                st.success("✅ Accounts erfolgreich verknüpft!")
+                # YouTube speichern (mit API Key)
+                if youtube_id or youtube_key:
+                    cursor.execute("INSERT INTO api_credentials (username, platform, channel_id, api_key) VALUES (%s, 'YouTube', %s, %s) ON CONFLICT (username, platform) DO UPDATE SET channel_id = EXCLUDED.channel_id, api_key = EXCLUDED.api_key", (username, youtube_id, youtube_key))
+                
+                st.success("✅ Accounts & API-Keys erfolgreich verknüpft!")
                 st.rerun()
 
     cursor.close()
     conn.close()
 
 # ==============================================================================
-# TAB 2: DISCORD WEBHOOKS (ALTBESTAND)
+# TAB 2: DISCORD WEBHOOKS
 # ==============================================================================
 with tab_webhooks:
     def get_webhooks(user):
