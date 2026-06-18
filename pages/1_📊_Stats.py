@@ -22,7 +22,8 @@ conn = utils.get_db_connection()
 cursor = conn.cursor()
 cursor.execute("SELECT platform, channel_id FROM api_credentials WHERE username = %s", (current_user,))
 creds = {row["platform"]: row["channel_id"] for row in cursor.fetchall()}
-cursor.close(); conn.close()
+cursor.close()
+conn.close()
 
 # ==============================================================================
 # TABS FÜR DIE STRUKTUR
@@ -46,6 +47,7 @@ with t_kanal:
             
             if not channel_name and sync_plat in ["Twitch", "YouTube"]:
                 st.error(f"Bitte hinterlege deine {sync_plat}-ID in den Einstellungen!")
+                
             elif sync_plat == "Twitch":
                 with st.spinner("Frage Twitch Server ab..."):
                     try:
@@ -61,8 +63,41 @@ with t_kanal:
                         }
                         utils.save_data("stats", stats_data)
                         st.success(f"✅ Twitch Update: {followers} Follower gespeichert!")
-                        time.sleep(1.5); st.rerun()
-                    except: st.error("Fehler beim Abruf der Twitch-Daten.")
+                        time.sleep(1.5)
+                        st.rerun()
+                    except Exception as e: 
+                        st.error(f"Fehler beim Abruf der Twitch-Daten: {e}")
+
+            elif sync_plat == "YouTube":
+                yt_api_key = st.secrets.get("YOUTUBE_API_KEY", "")
+                if not yt_api_key:
+                    st.error("⚠️ YouTube API Key fehlt! Bitte in deine st.secrets eintragen.")
+                else:
+                    with st.spinner("Frage YouTube Server ab..."):
+                        try:
+                            # YouTube Data API v3 Endpoint
+                            url = f"https://www.googleapis.com/youtube/v3/channels?part=statistics&id={channel_name}&key={yt_api_key}"
+                            res = requests.get(url).json()
+                            
+                            if "items" in res and len(res["items"]) > 0:
+                                stats = res["items"][0]["statistics"]
+                                subs = int(stats.get("subscriberCount", 0))
+                                views = int(stats.get("viewCount", 0))
+                                videos = int(stats.get("videoCount", 0))
+                                
+                                post_id = str(int(time.time()))
+                                stats_data[post_id] = {
+                                    "title": f"Live Kanal-Status", "platform": sync_plat, "date": time.strftime("%d.%m.%Y"),
+                                    "entry_type": "Kanal", "metrics": {"Abonnenten": subs, "Aufrufe Gesamt": views, "Videos": videos}
+                                }
+                                utils.save_data("stats", stats_data)
+                                st.success(f"✅ YouTube Update: {subs} Abonnenten gespeichert!")
+                                time.sleep(1.5)
+                                st.rerun()
+                            else:
+                                st.error("⚠️ Kanal nicht gefunden. Ist die YouTube Channel-ID in den Einstellungen korrekt?")
+                        except Exception as e:
+                            st.error(f"Fehler beim Abruf der YouTube-Daten: {e}")
             else:
                 st.warning(f"API für {sync_plat} Kanäle aktuell nicht verbunden. Bitte manuellen Modus nutzen.")
                 
@@ -79,7 +114,9 @@ with t_kanal:
                     "entry_type": "Kanal", "metrics": {"Follower": f_count, "Aufrufe / Live": v_count}
                 }
                 utils.save_data("stats", stats_data)
-                st.success("✅ Gespeichert!"); time.sleep(0.5); st.rerun()
+                st.success("✅ Gespeichert!")
+                time.sleep(0.5)
+                st.rerun()
 
 # ------------------------------------------------------------------------------
 # TAB 2: EINZELNE POSTS (MIT API VORBEREITUNG)
@@ -95,8 +132,10 @@ with t_post:
             post_url = st.text_input("Link zum Video", placeholder="https://...", label_visibility="collapsed")
         with c_sync:
             if st.button("🚀 Daten ziehen", use_container_width=True):
-                if not post_url: st.error("Bitte Link einfügen.")
-                else: st.info("API-Schnittstelle für Einzelposts auf dieser Plattform in Vorbereitung. Bitte trage die Daten kurz unten ein.")
+                if not post_url: 
+                    st.error("Bitte Link einfügen.")
+                else: 
+                    st.info("API-Schnittstelle für Einzelposts auf dieser Plattform in Vorbereitung. Bitte trage die Daten kurz unten ein.")
                 
     st.markdown("---")
     with st.form("manual_post_form", clear_on_submit=True):
@@ -114,7 +153,9 @@ with t_post:
                     "entry_type": "Post", "metrics": {"Aufrufe": m_views, "Likes": m_likes, "Kommentare": m_comms, "Shares": m_shares}
                 }
                 utils.save_data("stats", stats_data)
-                st.success("✅ Erfolgreich gespeichert!"); time.sleep(0.5); st.rerun()
+                st.success("✅ Erfolgreich gespeichert!")
+                time.sleep(0.5)
+                st.rerun()
             else:
                 st.error("Bitte Titel angeben.")
 
@@ -122,7 +163,8 @@ with t_post:
 # TAB 3: DASHBOARD & GRAPHEN
 # ------------------------------------------------------------------------------
 with t_dash:
-    if not stats_data: st.info("Noch keine Daten vorhanden.")
+    if not stats_data: 
+        st.info("Noch keine Daten vorhanden.")
     else:
         view_type = st.radio("Was möchtest du auswerten?", ["Kanal-Wachstum", "Einzelne Posts"], horizontal=True)
         e_type = "Kanal" if view_type == "Kanal-Wachstum" else "Post"
@@ -132,7 +174,6 @@ with t_dash:
         chart_data = []
         archiv_items = []
         for p_id, p_info in sorted(stats_data.items(), key=lambda x: x[0]):
-            # Rückwärtskompatibilität für deine alten Daten
             item_type = p_info.get("entry_type", "Kanal" if "Auto-Sync" in p_info.get("title", "") else "Post")
             
             if p_info.get("platform") == f_plat and item_type == e_type:
