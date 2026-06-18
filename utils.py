@@ -122,36 +122,18 @@ def check_login():
     return st.session_state["username"]
 
 # ==============================================================================
-# DISCORD WEBHOOK FUNKTION (HIER WAR DER FEHLER - FUNKTION IST JETZT WIEDER DA)
+# DISCORD WEBHOOK FUNKTION (PRO VERSION - RICH EMBEDS)
 # ==============================================================================
 def send_discord_webhook(url, text_content=None, embed_data=None):
     payload = {}
     
-    # Prüfen, ob ein Medien-Link im Text oder Embed steckt
-    full_text_check = f"{text_content or ''} "
-    if embed_data:
-        full_text_check += f"{embed_data.get('title', '')} {embed_data.get('description', '')}"
+    # Text (z.B. für Rollen-Pings) immer in den "content" packen
+    if text_content: 
+        payload["content"] = text_content
         
-    has_media_link = any(x in full_text_check for x in ["youtube.com/", "youtu.be/", "x.com/", "twitter.com/"])
-
-    # FALL A: Es ist ein Medien-Link dabei -> Embed auflösen, um Vorschau zu erzwingen
-    if has_media_link and embed_data:
-        text_pieces = []
-        if text_content:
-            text_pieces.append(text_content.strip())
-        if embed_data.get("title"):
-            text_pieces.append(f"**{embed_data['title'].strip()}**")
-        if embed_data.get("description"):
-            text_pieces.append(embed_data["description"].strip())
-            
-        payload["content"] = "\n\n".join(text_pieces)
-
-    # FALL B: Normales Update -> Klassischer farbiger Kasten (Embed)
-    else:
-        if text_content: 
-            payload["content"] = text_content
-        if embed_data: 
-            payload["embeds"] = [embed_data]
+    # Das professionelle Embed anhängen
+    if embed_data: 
+        payload["embeds"] = [embed_data]
             
     try:
         response = requests.post(url, json=payload)
