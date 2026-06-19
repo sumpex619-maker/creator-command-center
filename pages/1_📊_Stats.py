@@ -20,8 +20,9 @@ if not isinstance(stats_data, dict): stats_data = {}
 
 conn = utils.get_db_connection()
 cursor = conn.cursor()
-cursor.execute("SELECT platform, channel_id FROM api_credentials WHERE username = %s", (current_user,))
-creds = {row["platform"]: row["channel_id"] for row in cursor.fetchall()}
+cursor.execute("SELECT platform, channel_id, api_key FROM api_credentials WHERE username = %s", (current_user,))
+# Das Dictionary speichert jetzt pro Plattform ID und API Key
+creds = {row["platform"]: {"channel_id": row["channel_id"], "api_key": row["api_key"]} for row in cursor.fetchall()}
 cursor.close()
 conn.close()
 
@@ -43,7 +44,9 @@ with t_kanal:
     with c_btn:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🔄 Kanal abrufen", type="primary", use_container_width=True):
-            channel_name = creds.get(sync_plat, "")
+            
+            # Channel ID auslesen (funktioniert jetzt sicher für mehrere Nutzer)
+            channel_name = creds.get(sync_plat, {}).get("channel_id", "")
             
             if not channel_name and sync_plat in ["Twitch", "YouTube"]:
                 st.error(f"Bitte hinterlege deine {sync_plat}-ID in den Einstellungen!")
@@ -69,9 +72,11 @@ with t_kanal:
                         st.error(f"Fehler beim Abruf der Twitch-Daten: {e}")
 
             elif sync_plat == "YouTube":
-                yt_api_key = st.secrets.get("YOUTUBE_API_KEY", "")
+                # API Key aus der nutzereigenen Datenbank lesen!
+                yt_api_key = creds.get("YouTube", {}).get("api_key", "")
+                
                 if not yt_api_key:
-                    st.error("⚠️ YouTube API Key fehlt! Bitte in deine st.secrets eintragen.")
+                    st.error("⚠️ YouTube API Key fehlt! Bitte in deinen Einstellungen unter 'Verknüpfte Accounts' eintragen.")
                 else:
                     with st.spinner("Frage YouTube Server ab..."):
                         try:
